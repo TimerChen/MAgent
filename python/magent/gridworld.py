@@ -247,6 +247,14 @@ class GridWorld(Environment):
 
         return view_buf, feature_buf
 
+    def get_mean_action(self, handle):
+        # TODO:
+        pass
+
+    def get_mean_observation(self, handle):
+        # TODO:
+        pass
+
     def set_action(self, handle, actions):
         """ set actions for whole group
 
