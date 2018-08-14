@@ -399,6 +399,118 @@ void GridWorld::get_observation(GroupHandle group, float **linear_buffers) {
         delete [] minimap.data;
 }
 
+void GridWorld::get_mean_observation(GroupHandle group, float **linear_buffers)
+{
+    Group &g = groups[group];
+    AgentType &type = g.get_type();
+
+    const int n_channel   = g.get_type().n_channel;
+    const int view_width  = g.get_type().view_range->get_width();
+    const int view_height = g.get_type().view_range->get_height();
+    const int n_group = (int)groups.size();
+    const int n_action = (int)type.action_space.size();
+    const int feature_size = get_feature_size(group);
+
+    std::vector<Agent*> &agents = g.get_agents();
+    size_t agent_size = agents.size();
+
+    // transform buffers
+    NDPointer<float, 4> view_buffer(linear_buffers[0], {{-1, view_height, view_width, n_channel}});
+    NDPointer<float, 2> feature_buffer(linear_buffers[1], {{-1, feature_size}});
+
+    memset(view_buffer.data, 0, sizeof(float) * agent_size * view_height * view_width * n_channel);
+    memset(feature_buffer.data, 0, sizeof(float) * agent_size * feature_size);
+
+    // gather view info from AgentType
+    const Range *range = type.view_range;
+    int view_x_offset = type.view_x_offset, view_y_offset = type.view_y_offset;
+    int view_left_top_x, view_left_top_y, view_right_bottom_x, view_right_bottom_y;
+    range->get_range_rela_offset(view_left_top_x, view_left_top_y,
+                                 view_right_bottom_x, view_right_bottom_y);
+
+    // to make channel layout in observation symmetric to every group
+    std::vector<int> channel_trans = make_channel_trans(group,
+                                                        group2channel(0),
+                                                        type.n_channel,
+                                                        n_group);
+
+    // build minimap
+    NDPointer<float, 3> minimap(nullptr, {{view_height, view_width, n_group}});
+    int scale_h = (height + view_height - 1) / view_height;
+    int scale_w = (width + view_width - 1) / view_width;
+
+    if (minimap_mode) {
+        minimap.data = new float [view_height * view_width * n_group];
+        memset(minimap.data, 0, sizeof(float) * view_height * view_width * n_group);
+
+        std::vector<int> group_sizes;
+        for (int i = 0; i < n_group; i++)
+            group_sizes.push_back(groups[i].get_size() > 0 ? (int)groups[i].get_size() : 1);
+
+        // by agents
+#pragma omp parallel for
+        for (int i = 0; i < n_group; i++) {
+            std::vector<Agent*> &agents_ = groups[i].get_agents();
+            AgentType type_ = agents[0]->get_type();
+            size_t total_ct = 0;
+            for (int j = 0; j < agents_.size(); j++) {
+                if (type_.can_absorb && agents_[j]->is_absorbed()) // ignore absorbed goal
+                    continue;
+                Position pos = agents_[j]->get_pos();
+                int x = pos.x / scale_w, y = pos.y / scale_h;
+                minimap.at(y, x, i)++;
+                total_ct++;
+            }
+            // scale
+            for (int j = 0; j < view_height; j++) {
+                for (int k = 0; k < view_width; k++) {
+                    minimap.at(j, k, i) /= total_ct;
+                }
+            }
+        }
+    }
+
+    // fill local view for every agents
+#pragma omp parallel for
+    for (int i = 0; i < agent_size; i++) {
+        Agent *agent = agents[i];
+        // get spatial view
+        map.extract_view(agent, view_buffer.data + i*view_height*view_width*n_channel, &channel_trans[0], range,
+                         n_channel, view_width, view_height, view_x_offset, view_y_offset,
+                         view_left_top_x, view_left_top_y, view_right_bottom_x, view_right_bottom_y);
+
+        if (minimap_mode) {
+            int self_x = agent->get_pos().x / scale_w;
+            int self_y = agent->get_pos().y / scale_h;
+            for (int j = 0; j < n_group; j++) {
+                int minimap_channel = channel_trans[group2channel(j)] + 2;
+                // copy minimap to channel
+                for (int k = 0; k < view_height; k++) {
+                    for (int l = 0; l < view_width; l++) {
+                        view_buffer.at(i, k, l, minimap_channel)= minimap.at(k, l, j);
+                    }
+                }
+                view_buffer.at(i, self_y, self_x, minimap_channel) += 1;
+            }
+        }
+
+        // get non-spatial feature
+        agent->get_embedding(feature_buffer.data + i*feature_size, embedding_size);
+        Position pos = agent->get_pos();
+        // last action
+        feature_buffer.at(i, embedding_size + agent->get_action()) = 1;
+        // last reward
+        feature_buffer.at(i, embedding_size + n_action) = agent->get_last_reward();
+        if (minimap_mode) { // absolute coordination
+            feature_buffer.at(i, embedding_size + n_action + 1) = (float) pos.x / width;
+            feature_buffer.at(i, embedding_size + n_action + 2) = (float) pos.y / height;
+        }
+    }
+
+    if (minimap_mode)
+        delete [] minimap.data;
+}
+
 void GridWorld::set_action(GroupHandle group, const int *actions) {
     std::vector<Agent*> &agents = groups[group].get_agents();
     const AgentType &type = groups[group].get_type();

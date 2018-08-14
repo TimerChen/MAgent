@@ -46,6 +46,7 @@ public:
 
     // run step
     void get_observation(GroupHandle group, float **linear_buffers) override;
+    void get_mean_observation(GroupHandle group, float **linear_buffers);
     void set_action(GroupHandle group, const int *actions) override;
     void step(int *done) override;
     void get_reward(GroupHandle group, float *buffer) override;

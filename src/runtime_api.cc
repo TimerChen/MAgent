@@ -9,6 +9,8 @@
 #include "utility/utility.h"
 #include "runtime_api.h"
 
+#include <typeinfo>
+
 /**
  *  General Environment
  */
@@ -48,6 +50,17 @@ int env_get_observation(EnvHandle game, GroupHandle group, float **buffer) {
     LOG(TRACE) << "env get observation.  ";
     game->get_observation(group, buffer);
     return 0;
+}
+int env_get_mean_observation(EnvHandle game, GroupHandle group, float **buffer) {
+    LOG(TRACE) << "env get mean observation.  ";
+    if(typeid(game) == typeid(magent::gridworld::GridWorld*))
+    {
+        ((magent::gridworld::GridWorld*)game)->get_mean_observation(group, buffer);
+        return 0;
+    }else{
+        LOG(TRACE) << "Thie env cannot get mean observation.  ";
+        return 1;
+    }
 }
 
 int env_set_action(EnvHandle game, GroupHandle group, const int *actions) {

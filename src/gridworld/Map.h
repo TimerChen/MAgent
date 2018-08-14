@@ -56,6 +56,10 @@ public:
                       int n_channel, int width, int height, int view_x_offset, int view_y_offset,
                       int view_left_top_x, int view_left_top_y,
                       int view_right_bottom_x, int view_right_bottom_y) const;
+    void extract_mean_view(const Agent *agent, float *linear_buffer, const int *channel_trans, const Range *range,
+                          int n_channel, int width, int height, int view_x_offset, int view_y_offset,
+                          int view_left_top_x, int view_left_top_y,
+                          int view_right_bottom_x, int view_right_bottom_y) const;
 
     PositionInteger get_attack_obj(const AttackAction &attack, int &obj_x, int &obj_y) const;
     Reward do_attack(Agent *agent, PositionInteger pos_int, GroupHandle &dead_group);
@@ -70,6 +74,7 @@ public:
 
 private:
     MapSlot* slots;
+    float*** mean_value;
     int *channel_ids;  // channel_id is supposed to be a member of MapSlot, extract it out from MapSlot for faster access of memory
     int w, h;
     const int wall_channel_id, food_channel_id;
