@@ -24,19 +24,14 @@ void Map::reset(int width, int height, bool food_mode) {
     this->w = width;
     this->h = height;
     this->food_mode = food_mode;
-
     if (slots != nullptr)
         delete [] slots;
     slots = new MapSlot[w * h];
 
-    if (mean_value != nullptr)
-        delete [] mean_value;
-    mean_value = new float**[w*h];
 
     if (channel_ids != nullptr)
         delete [] channel_ids;
     channel_ids = new int[w * h];
-
     memset(channel_ids, -1, sizeof(int) * w * h);
 
     // init border
@@ -268,6 +263,7 @@ void Map::extract_mean_view(Agent *agent, NDPointer<float, 4> view_buffer, NDPoi
 
     int start_inner = *p_view_inner;
 
+    agent->mean_number = 0;
     // scan the map
     for (int x = start_x; x <= end_x; x++) {
         PositionInteger pos_int = pos2int(x, start_y);
@@ -279,7 +275,9 @@ void Map::extract_mean_view(Agent *agent, NDPointer<float, 4> view_buffer, NDPoi
                 //buffer.at(view_y, view_x, channel_id) = 1;
                 if (slots[pos_int].occupier != nullptr && slots[pos_int].occ_type == OCC_AGENT) { // is agent
                     Agent *p = ((Agent *) slots[pos_int].occupier);
-                    if(p->get_group() != agent->get_group())
+                    //another agent in a group
+                    if(p->get_group() != agent->get_group() ||
+                       p == agent)
                         continue;
                     agent->mean_number += 1;
 
@@ -299,8 +297,9 @@ void Map::extract_mean_view(Agent *agent, NDPointer<float, 4> view_buffer, NDPoi
                         agent->mean_info[1][i] += copy_from[i];
 
                     //total action
-                    agent->mean_info[2][p->get_action()] += 1;
-                    //buffer.at(view_y, view_x, channel_id + 1) = p->get_hp() / p->get_type().hp; // normalize hp
+                    if(p->get_action() < agent->mean_info_size[2])
+                        agent->mean_info[2][p->get_action()] += 1;
+
                 }
             }
 

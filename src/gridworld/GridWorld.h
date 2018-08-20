@@ -181,10 +181,12 @@ public:
     float** get_final_mean_info()
     {
         if(mean_number > 0)
-        for(int i=0;i<3;++i)
-        for(int j=mean_info_size[i]-1;j>=0;--j)
         {
-            mean_info[i][j]/=mean_number;
+            for(int i=0;i<3;++i)
+            for(int j=mean_info_size[i]-1;j>=0;--j)
+            {
+                mean_info[i][j]/=mean_number;
+            }
         }
         mean_number = 0;
         return mean_info;

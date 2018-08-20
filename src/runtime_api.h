@@ -25,6 +25,7 @@ int env_config_game(EnvHandle game, const char *name, void *p_value);
 int env_reset(EnvHandle game);
 int env_get_observation(EnvHandle game, GroupHandle group, float **buffer);
 int env_get_mean_observation(EnvHandle game, GroupHandle group, float **buffer);
+int env_get_mean_action(EnvHandle game, GroupHandle group, float *buffer);
 int env_set_action(EnvHandle game, GroupHandle group, const int *actions);
 int env_step(EnvHandle game, int *done);
 int env_get_reward(EnvHandle game, GroupHandle group, float *buffer);

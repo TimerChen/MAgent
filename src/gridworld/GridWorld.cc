@@ -348,6 +348,7 @@ void GridWorld::get_observation(GroupHandle group, float **linear_buffers) {
             std::vector<Agent*> &agents_ = groups[i].get_agents();
             AgentType type_ = agents[0]->get_type();
             size_t total_ct = 0;
+
             for (int j = 0; j < agents_.size(); j++) {
                 if (type_.can_absorb && agents_[j]->is_absorbed()) // ignore absorbed goal
                     continue;
@@ -364,7 +365,6 @@ void GridWorld::get_observation(GroupHandle group, float **linear_buffers) {
             }
         }
     }
-
 
     int feature_s, view_s, action_s;
 
@@ -386,7 +386,6 @@ void GridWorld::get_observation(GroupHandle group, float **linear_buffers) {
         //init mean-info
         agent->init_mean_info(view_s, feature_s, action_s);
         agent->set_tmpid(i);
-
         // get spatial view
         map.extract_view(agent, view_buffer.data + i*view_height*view_width*n_channel, &channel_trans[0], range,
                          n_channel, view_width, view_height, view_x_offset, view_y_offset,
@@ -449,7 +448,7 @@ void GridWorld::get_mean_observation(GroupHandle group, float **linear_buffers)
     Group &g = groups[group];
     AgentType &type = g.get_type();
 
-    const int n_channel   = g.get_type().n_channel;
+    const int n_channel   = group2channel((GroupHandle)groups.size(), true);
     const int view_width  = g.get_type().view_range->get_width();
     const int view_height = g.get_type().view_range->get_height();
     const int n_group = (int)groups.size();
@@ -491,10 +490,10 @@ void GridWorld::get_mean_observation(GroupHandle group, float **linear_buffers)
             float* copy_to;
             copy_to = linear_buffers[0];
             length = agent->mean_info_size[0];
-            memcpy(copy_to, buffer[0], length);
+            memcpy(copy_to, buffer[0], length * sizeof(float));
             copy_to = linear_buffers[1];
             length = agent->mean_info_size[1];
-            memcpy(copy_to, buffer[1], length);
+            memcpy(copy_to, buffer[1], length * sizeof(float));
         }
 
 
@@ -550,7 +549,7 @@ void GridWorld::get_mean_action(GroupHandle group, float *linear_buffers)
 
             float* copy_to = linear_buffers;
             size_t length = agent->mean_info_size[2];
-            memcpy(copy_to, buffer[2], length);
+            memcpy(copy_to, buffer[2], length * sizeof(float));
         }
 
 

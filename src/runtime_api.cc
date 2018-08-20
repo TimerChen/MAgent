@@ -53,7 +53,7 @@ int env_get_observation(EnvHandle game, GroupHandle group, float **buffer) {
 }
 int env_get_mean_observation(EnvHandle game, GroupHandle group, float **buffer) {
     LOG(TRACE) << "env get mean observation.  ";
-    if(typeid(game) == typeid(magent::gridworld::GridWorld*))
+    if(typeid(*game) == typeid(magent::gridworld::GridWorld))
     {
         ((magent::gridworld::GridWorld*)game)->get_mean_observation(group, buffer);
         return 0;
@@ -65,7 +65,7 @@ int env_get_mean_observation(EnvHandle game, GroupHandle group, float **buffer) 
 
 int env_get_mean_action(EnvHandle game, GroupHandle group, float *buffer) {
     LOG(TRACE) << "env get mean observation.  ";
-    if(typeid(game) == typeid(magent::gridworld::GridWorld*))
+    if(typeid(*game) == typeid(magent::gridworld::GridWorld))
     {
         ((magent::gridworld::GridWorld*)game)->get_mean_action(group, buffer);
         return 0;

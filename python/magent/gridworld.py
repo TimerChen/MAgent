@@ -127,10 +127,10 @@ class GridWorld(Environment):
             self.mean_view_space[handle.value] = (buf[0], buf[1], buf[2])
             _LIB.env_get_info(self.game, handle, b"mean_feature_space",
                               buf.ctypes.data_as(ctypes.POINTER(ctypes.c_int32)))
-            self.feature_space[handle.value] = (buf[0],)
+            self.mean_feature_space[handle.value] = (buf[0],)
             _LIB.env_get_info(self.game, handle, b"mean_action_space",
                               buf.ctypes.data_as(ctypes.POINTER(ctypes.c_int32)))
-            self.action_space[handle.value] = (buf[0],)
+            self.mean_action_space[handle.value] = (buf[0],)
 
 
     def reset(self):
@@ -262,7 +262,6 @@ class GridWorld(Environment):
         n = self.get_num(handle)
         view_buf = self._get_obs_buf(no, self.OBS_INDEX_VIEW, (n,) + view_space, np.float32)
         feature_buf = self._get_obs_buf(no, self.OBS_INDEX_HP, (n,) + feature_space, np.float32)
-
         bufs = (ctypes.POINTER(ctypes.c_float) * 2)()
         bufs[0] = as_float_c_array(view_buf)
         bufs[1] = as_float_c_array(feature_buf)
@@ -271,7 +270,6 @@ class GridWorld(Environment):
         return view_buf, feature_buf
 
     def get_mean_action(self, handle):
-        # TODO:
         """ get mean-action of a whole group
 
         Parameters
@@ -295,7 +293,6 @@ class GridWorld(Environment):
         return action_buf
 
     def get_mean_observation(self, handle):
-        # TODO:
         """ get mean-observation of a whole group
 
         Parameters

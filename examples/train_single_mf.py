@@ -1,9 +1,11 @@
 """
-Train battle, two models in two processes
+Train a single model by self-play
 """
+
 
 import argparse
 import time
+import os
 import logging as log
 import math
 
@@ -11,15 +13,12 @@ import numpy as np
 
 import magent
 
-leftID, rightID = 0, 1
+
 def generate_map(env, map_size, handles):
     """ generate a map, which consists of two squares of agents"""
     width = height = map_size
     init_num = map_size * map_size * 0.04
     gap = 3
-
-    global leftID, rightID
-    leftID, rightID = rightID, leftID
 
     # left
     n = init_num
@@ -28,7 +27,7 @@ def generate_map(env, map_size, handles):
     for x in range(width//2 - gap - side, width//2 - gap - side + side, 2):
         for y in range((height - side)//2, (height - side)//2 + side, 2):
             pos.append([x, y, 0])
-    env.add_agents(handles[leftID], method="custom", pos=pos)
+    env.add_agents(handles[0], method="custom", pos=pos)
 
     # right
     n = init_num
@@ -37,13 +36,13 @@ def generate_map(env, map_size, handles):
     for x in range(width//2 + gap, width//2 + gap + side, 2):
         for y in range((height - side)//2, (height - side)//2 + side, 2):
             pos.append([x, y, 0])
-    env.add_agents(handles[rightID], method="custom", pos=pos)
+    env.add_agents(handles[1], method="custom", pos=pos)
 
-
-def play_a_round(env, map_size, handles, models, print_every, train=True, render=False, eps=None):
-    """play a ground and train"""
+def init_a_round(env, map_size, handles):
     env.reset()
     generate_map(env, map_size, handles)
+
+def play_a_round(env, map_size, handles, models, print_every, train=True, render=False, eps=None):
 
     step_ct = 0
     done = False
@@ -54,6 +53,7 @@ def play_a_round(env, map_size, handles, models, print_every, train=True, render
     ids  = [[] for _ in range(n)]
     acts = [[] for _ in range(n)]
     nums = [env.get_num(handle) for handle in handles]
+    sample_buffer = magent.utility.EpisodesBuffer(capacity=1500)
     total_reward = [0 for _ in range(n)]
 
     print("===== sample =====")
@@ -63,16 +63,11 @@ def play_a_round(env, map_size, handles, models, print_every, train=True, render
         # take actions for every model
         for i in range(n):
             obs[i] = env.get_observation(handles[i])
-            mean_obs[i] = env.get_mean_observation(handles[i])
-            # TODO: add obs and mean_obs
-            #obs[i] = (np.concatenate([obs[i][0],mean_obs[i][0]], axis=1), np.concatenate([obs[i][1],mean_obs[i][1]], axis=1))
+            mean_obs[i] = env.get_mean_action(handles[i])
+            obs[i] = (obs[i][0], np.concatenate([obs[i][1],mean_obs[i]], axis=1))
 
             ids[i] = env.get_agent_id(handles[i])
-            # let models infer action in parallel (non-blocking)
-            models[i].infer_action(obs[i], ids[i], 'e_greedy', eps, block=False)
-
-        for i in range(n):
-            acts[i] = models[i].fetch_action()  # fetch actions (blocking)
+            acts[i] = models[i].infer_action(obs[i], ids[i], 'e_greedy', eps=eps)
             env.set_action(handles[i], acts[i])
 
         # simulate one step
@@ -84,8 +79,7 @@ def play_a_round(env, map_size, handles, models, print_every, train=True, render
             rewards = env.get_reward(handles[i])
             if train:
                 alives = env.get_alive(handles[i])
-                # store samples in replay buffer (non-blocking)
-                models[i].sample_step(rewards, alives, block=False)
+                sample_buffer.record_step(ids[i], obs[i], acts[i], rewards, alives)
             s = sum(rewards)
             step_reward.append(s)
             total_reward[i] += s
@@ -100,15 +94,9 @@ def play_a_round(env, map_size, handles, models, print_every, train=True, render
         # clear dead agents
         env.clear_dead()
 
-        # check return message of previous called non-blocking function sample_step()
-        if args.train:
-            for model in models:
-                model.check_done()
-
         if step_ct % print_every == 0:
             print("step %3d,  nums: %s reward: %s,  total_reward: %s " %
                   (step_ct, nums, np.around(step_reward, 2), np.around(total_reward, 2)))
-
         step_ct += 1
         if step_ct > 550:
             break
@@ -117,22 +105,16 @@ def play_a_round(env, map_size, handles, models, print_every, train=True, render
     print("steps: %d,  total time: %.2f,  step average %.2f" % (step_ct, sample_time, sample_time / step_ct))
 
     # train
-    total_loss, value = [0 for _ in range(n)], [0 for _ in range(n)]
+    total_loss, value = 0, 0
     if train:
         print("===== train =====")
         start_time = time.time()
-
-        # train models in parallel
-        for i in range(n):
-            models[i].train(print_every=1000, block=False)
-        for i in range(n):
-            total_loss[i], value[i] = models[i].fetch_train()
-
+        total_loss, value = models[0].train(sample_buffer, 1000)
         train_time = time.time() - start_time
         print("train_time %.2f" % train_time)
 
     def round_list(l): return [round(x, 2) for x in l]
-    return round_list(total_loss), nums, round_list(total_reward), round_list(value)
+    return total_loss, nums, round_list(total_reward), value
 
 
 if __name__ == "__main__":
@@ -147,60 +129,60 @@ if __name__ == "__main__":
     parser.add_argument("--greedy", action="store_true")
     parser.add_argument("--name", type=str, default="battle")
     parser.add_argument("--eval", action="store_true")
-    parser.add_argument('--alg', default='dqn', choices=['dqn', 'drqn', 'a2c'])
+    parser.add_argument('--alg', default='dqn', choices=['dqn', 'drqn'])
     args = parser.parse_args()
 
     # set logger
-    magent.utility.init_logger(args.name)
+    log.basicConfig(level=log.INFO, filename=args.name + '.log')
+    console = log.StreamHandler()
+    console.setLevel(log.INFO)
+    log.getLogger('').addHandler(console)
 
     # init the game
     env = magent.GridWorld("battle", map_size=args.map_size)
     env.set_render_dir("build/render")
 
     # two groups of agents
+    names = [args.name + "-l", args.name + "-r"]
     handles = env.get_handles()
-
+    
     # sample eval observation set
-    eval_obs = [None, None]
+    eval_obs = None
     if args.eval:
         print("sample eval set...")
         env.reset()
         generate_map(env, args.map_size, handles)
-        for i in range(len(handles)):
-            eval_obs[i] = magent.utility.sample_observation(env, handles, 2048, 500)
+        eval_obs = magent.utility.sample_observation(env, handles, 2048, 500)[0]
 
-    # load models
-    batch_size = 256
+    # init models
+    batch_size = 512
     unroll_step = 8
     target_update = 1200
     train_freq = 5
 
+    models = []
+    init_a_round(env, args.map_size, handles)
     if args.alg == 'dqn':
         from magent.builtin.tf_model import DeepQNetwork
-        RLModel = DeepQNetwork
-        base_args = {'batch_size': batch_size,
-                     'memory_size': 2 ** 20, 'learning_rate': 1e-4,
-                     'target_update': target_update, 'train_freq': train_freq}
+        models.append(DeepQNetwork(env, handles[0], "battle",
+                                   batch_size=batch_size,
+                                   learning_rate=3e-4,
+                                   memory_size=2 ** 18, target_update=target_update,
+                                   train_freq=train_freq, eval_obs=eval_obs,
+                                   custom_feature_space = (env.get_feature_space(handles[0])[0] + env.get_mean_action_space(handles[0])[0],)
+                                   ))
     elif args.alg == 'drqn':
         from magent.builtin.tf_model import DeepRecurrentQNetwork
-        RLModel = DeepRecurrentQNetwork
-        base_args = {'batch_size': batch_size / unroll_step, 'unroll_step': unroll_step,
-                     'memory_size': 8 * 625, 'learning_rate': 1e-4,
-                     'target_update': target_update, 'train_freq': train_freq}
-    elif args.alg == 'a2c':
+        models.append(DeepRecurrentQNetwork(env, handles[0], "battle",
+                                   learning_rate=3e-4,
+                                   batch_size=batch_size/unroll_step, unroll_step=unroll_step,
+                                   memory_size=2 * 8 * 625, target_update=target_update,
+                                   train_freq=train_freq, eval_obs=eval_obs))
+    else:
         # see train_against.py to know how to use a2c
         raise NotImplementedError
 
-    # init models
-    names = [args.name + "-l", args.name + "-r"]
-    models = []
-
-    for i in range(len(names)):
-        model_args = {'eval_obs': eval_obs[i], \
-                      'custom_view_space': env.get_view_space(handles[0])*2, \
-                      'custom_feature_space': env.get_feature_space(handles[0])*2 }
-        model_args.update(base_args)
-        models.append(magent.ProcessingModel(env, handles[i], names[i], 20000+i, 1000, RLModel, **model_args))
+    models.append(models[0])
 
     # load if
     savedir = 'save_model'
@@ -212,7 +194,7 @@ if __name__ == "__main__":
     else:
         start_from = 0
 
-    # print state info
+    # print debug info
     print(args)
     print("view_space", env.get_view_space(handles[0]))
     print("feature_space", env.get_feature_space(handles[0]))
@@ -235,7 +217,3 @@ if __name__ == "__main__":
             print("save model... ")
             for model in models:
                 model.save(savedir, k)
-
-    # send quit command
-    for model in models:
-        model.quit()
