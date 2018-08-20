@@ -47,6 +47,7 @@ public:
     // run step
     void get_observation(GroupHandle group, float **linear_buffers) override;
     void get_mean_observation(GroupHandle group, float **linear_buffers);
+    void get_mean_action(GroupHandle group, float *linear_buffers);
     void set_action(GroupHandle group, const int *actions) override;
     void step(int *done) override;
     void get_reward(GroupHandle group, float *buffer) override;
@@ -85,8 +86,8 @@ private:
     // utility
     // to make channel layout in observation symmetric to every group
     std::vector<int> make_channel_trans(
-            GroupHandle group, int base, int n_channel, int n_group);
-    int group2channel(GroupHandle group);
+            GroupHandle group, int base, int n_channel, int n_group, bool noMini = false);
+    int group2channel(GroupHandle group, bool without_mini = false);
     int get_feature_size(GroupHandle group);
 
     // game config
@@ -141,8 +142,62 @@ public:
         last_action = static_cast<Action>(type.action_space.size()); // dangerous here !
         next_reward = 0;
 
+        tmpid = 0;
+        mean_number = 0;
+        mean_info[0] = mean_info[1] = mean_info[2] = nullptr;
+        mean_info_size[0] = mean_info_size[1] = mean_info_size[2] = 0;
+
         init_reward();
     }
+
+    ~Agent() {
+        for(int i=0;i<3;++i)
+            if(mean_info[i]!= nullptr)
+                delete [] mean_info[i];
+    }
+
+    float* mean_info[3];
+    int mean_number;
+    size_t mean_info_size[3];
+
+    void init_mean_info(int view_size, int feature_size, int action_size)
+    {
+        int new_value[3] = {view_size, feature_size, action_size};
+        mean_number = 0;
+        for(int i=0;i<3;++i)
+        {
+            if(new_value[i] != mean_info_size[i])
+            {
+                mean_info_size[i] = new_value[i];
+                delete [] mean_info[i];
+                mean_info[i] = nullptr;
+            }
+            if(mean_info[i] == nullptr)
+                mean_info[i] = new float[new_value[i]];
+
+            memset(mean_info[i],0, sizeof(float) * new_value[i]);
+        }
+    }
+    float** get_final_mean_info()
+    {
+        if(mean_number > 0)
+        for(int i=0;i<3;++i)
+        for(int j=mean_info_size[i]-1;j>=0;--j)
+        {
+            mean_info[i][j]/=mean_number;
+        }
+        mean_number = 0;
+        return mean_info;
+    }
+    int get_tmpid()
+    {
+        return this->tmpid;
+    }
+    void set_tmpid(int tmpid)
+    {
+        this->tmpid = tmpid;
+    }
+
 
     Position &get_pos()             { return pos; }
     const Position &get_pos() const { return pos; }
@@ -229,7 +284,7 @@ public:
     }
 
 private:
-    int id;
+    int id, tmpid;
     bool dead;
     bool absorbed;
 
@@ -251,6 +306,7 @@ private:
     std::vector<float> embedding;
     Position goal;
     int goal_radius;
+
 };
 
 

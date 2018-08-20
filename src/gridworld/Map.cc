@@ -210,8 +210,9 @@ void Map::extract_view(const Agent *agent, float *linear_buffer, const int *chan
     }
 }
 
-void Map::extract_mean_view(const Agent *agent, float *linear_buffer, const int *channel_trans, const Range *range,
-                       int n_channel, int width, int height, int view_x_offset, int view_y_offset,
+void Map::extract_mean_view(Agent *agent, NDPointer<float, 4> view_buffer, NDPointer<float, 2> feature_buffer,
+                        const int *channel_trans, const Range *range,
+                       int view_x_offset, int view_y_offset,
                        int view_left_top_x, int view_left_top_y,
                        int view_right_bottom_x, int view_right_bottom_y) const {
     // convert coordinates between absolute map and relative view
@@ -233,7 +234,7 @@ void Map::extract_mean_view(const Agent *agent, float *linear_buffer, const int 
     start_y = std::max(std::min(y1, y2), 0);
     end_y = std::min(std::max(y1, y2), h - 1);
 
-    NDPointer<float, 3> buffer(linear_buffer, {height, width, n_channel});
+
 
     // build projection from map coordinate to view buffer coordinate
     int view_x, view_y;
@@ -275,10 +276,31 @@ void Map::extract_mean_view(const Agent *agent, float *linear_buffer, const int 
 
             if (channel_id != -1 && range->is_in(view_y, view_x)) {
                 channel_id = channel_trans[channel_id];
-                buffer.at(view_y, view_x, channel_id) = 1;
+                //buffer.at(view_y, view_x, channel_id) = 1;
                 if (slots[pos_int].occupier != nullptr && slots[pos_int].occ_type == OCC_AGENT) { // is agent
                     Agent *p = ((Agent *) slots[pos_int].occupier);
-                    buffer.at(view_y, view_x, channel_id + 1) = p->get_hp() / p->get_type().hp; // normalize hp
+                    if(p->get_group() != agent->get_group())
+                        continue;
+                    agent->mean_number += 1;
+
+                    int length = 0;
+                    float *copy_from;
+
+                    //total view
+                    copy_from = &view_buffer.at(p->get_tmpid(),0,0,0);
+                    length = agent->mean_info_size[0];
+                    for(int i=0; i<length; ++i)
+                        agent->mean_info[0][i] += copy_from[i];
+
+                    //total feature
+                    copy_from = &feature_buffer.at(p->get_tmpid(),0);
+                    length = agent->mean_info_size[1];
+                    for(int i=0; i<length; ++i)
+                        agent->mean_info[1][i] += copy_from[i];
+
+                    //total action
+                    agent->mean_info[2][p->get_action()] += 1;
+                    //buffer.at(view_y, view_x, channel_id + 1) = p->get_hp() / p->get_type().hp; // normalize hp
                 }
             }
 

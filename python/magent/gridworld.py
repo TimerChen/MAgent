@@ -15,6 +15,9 @@ class GridWorld(Environment):
     # constant
     OBS_INDEX_VIEW = 0
     OBS_INDEX_HP   = 1
+    OBS_INDEX_MEAN_ACTION   = 2
+    OBS_INDEX_MEAN_VIEW     = 3
+    OBS_INDEX_MEAN_FEATURE  = 4
 
     def __init__(self, config, **kwargs):
         """
@@ -99,9 +102,14 @@ class GridWorld(Environment):
         self._init_obs_buf()
 
         # init view space, feature space, action space
+        # init mean-space info as above
         self.view_space = {}
         self.feature_space = {}
         self.action_space = {}
+        self.mean_view_space = {}
+        self.mean_feature_space = {}
+        self.mean_action_space = {}
+
         buf = np.empty((3,), dtype=np.int32)
         for handle in self.group_handles:
             _LIB.env_get_info(self.game, handle, b"view_space",
@@ -113,6 +121,17 @@ class GridWorld(Environment):
             _LIB.env_get_info(self.game, handle, b"action_space",
                                   buf.ctypes.data_as(ctypes.POINTER(ctypes.c_int32)))
             self.action_space[handle.value] = (buf[0],)
+
+            _LIB.env_get_info(self.game, handle, b"mean_view_space",
+                              buf.ctypes.data_as(ctypes.POINTER(ctypes.c_int32)))
+            self.mean_view_space[handle.value] = (buf[0], buf[1], buf[2])
+            _LIB.env_get_info(self.game, handle, b"mean_feature_space",
+                              buf.ctypes.data_as(ctypes.POINTER(ctypes.c_int32)))
+            self.feature_space[handle.value] = (buf[0],)
+            _LIB.env_get_info(self.game, handle, b"mean_action_space",
+                              buf.ctypes.data_as(ctypes.POINTER(ctypes.c_int32)))
+            self.action_space[handle.value] = (buf[0],)
+
 
     def reset(self):
         """reset environment"""
@@ -217,6 +236,10 @@ class GridWorld(Environment):
         self.obs_bufs = []
         self.obs_bufs.append({})
         self.obs_bufs.append({})
+        # for mean
+        self.obs_bufs.append({})
+        self.obs_bufs.append({})
+        self.obs_bufs.append({})
 
     def get_observation(self, handle):
         """ get observation of a whole group
@@ -249,11 +272,58 @@ class GridWorld(Environment):
 
     def get_mean_action(self, handle):
         # TODO:
-        pass
+        """ get mean-action of a whole group
+
+        Parameters
+        ----------
+        handle : group handle
+
+        Returns
+        -------
+        obs : action(one-hot)
+            action is a numpy array, whose shape is n * n_action
+        """
+        action_space = self.mean_action_space[handle.value]
+
+        no = handle.value
+
+        n = self.get_num(handle)
+        action_buf = self._get_obs_buf(no, self.OBS_INDEX_MEAN_ACTION, (n,) + action_space, np.float32)
+
+        bufs = as_float_c_array(action_buf)
+        _LIB.env_get_mean_action(self.game, handle, bufs)
+        return action_buf
 
     def get_mean_observation(self, handle):
         # TODO:
-        pass
+        """ get mean-observation of a whole group
+
+        Parameters
+        ----------
+        handle : group handle
+
+        Returns
+        -------
+        obs : tuple (views, features)
+            views is a numpy array, whose shape is n * view_width * view_height * n_channel
+            features is a numpy array, whose shape is n * feature_size
+            for agent i, (views[i], features[i]) is its observation at this step
+            notice that, in mean-case, there is no channel for minimap of views
+        """
+        view_space = self.mean_view_space[handle.value]
+        feature_space = self.mean_feature_space[handle.value]
+        no = handle.value
+
+        n = self.get_num(handle)
+        view_buf = self._get_obs_buf(no, self.OBS_INDEX_MEAN_VIEW, (n,) + view_space, np.float32)
+        feature_buf = self._get_obs_buf(no, self.OBS_INDEX_MEAN_FEATURE, (n,) + feature_space, np.float32)
+
+        bufs = (ctypes.POINTER(ctypes.c_float) * 2)()
+        bufs[0] = as_float_c_array(view_buf)
+        bufs[1] = as_float_c_array(feature_buf)
+        _LIB.env_get_mean_observation(self.game, handle, bufs)
+
+        return view_buf, feature_buf
 
     def set_action(self, handle, actions):
         """ set actions for whole group
@@ -337,6 +407,32 @@ class GridWorld(Environment):
         feature_space : tuple
         """
         return self.feature_space[handle.value]
+    def get_mean_action_space(self, handle):
+        """get mean action space
+
+        Returns
+        -------
+        mean_action_space : tuple
+        """
+        return self.mean_action_space[handle.value]
+
+    def get_mean_view_space(self, handle):
+        """get mean view space
+
+        Returns
+        -------
+        mean_view_space : tuple
+        """
+        return self.mean_view_space[handle.value]
+
+    def get_mean_feature_space(self, handle):
+        """ get mean feature space
+
+        Returns
+        -------
+        mean_feature_space : tuple
+        """
+        return self.mean_feature_space[handle.value]
 
     def get_agent_id(self, handle):
         """ get agent id
