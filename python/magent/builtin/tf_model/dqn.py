@@ -158,7 +158,7 @@ class DeepQNetwork(TFBaseModel):
             the input tensor
         """
         kernel_num  = [32, 32]
-        hidden_size = [256]
+        hidden_size = [128]
 
         if use_conv:  # convolution
             h_conv1 = tf.layers.conv2d(input_view, filters=kernel_num[0], kernel_size=3,

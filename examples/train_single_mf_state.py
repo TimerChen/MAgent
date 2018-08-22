@@ -44,6 +44,7 @@ def init_a_round(env, map_size, handles):
 
 def play_a_round(env, map_size, handles, models, print_every, train=True, render=False, eps=None):
 
+    init_a_round(env, map_size, handles)
     step_ct = 0
     done = False
 
@@ -126,7 +127,7 @@ if __name__ == "__main__":
     parser.add_argument("--render", action="store_true")
     parser.add_argument("--load_from", type=int)
     parser.add_argument("--train", action="store_true")
-    parser.add_argument("--map_size", type=int, default=125)
+    parser.add_argument("--map_size", type=int, default=63)
     parser.add_argument("--greedy", action="store_true")
     parser.add_argument("--name", type=str, default="battle")
     parser.add_argument("--eval", action="store_true")
