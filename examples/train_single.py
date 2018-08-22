@@ -120,7 +120,7 @@ if __name__ == "__main__":
     parser.add_argument("--render", action="store_true")
     parser.add_argument("--load_from", type=int)
     parser.add_argument("--train", action="store_true")
-    parser.add_argument("--map_size", type=int, default=125)
+    parser.add_argument("--map_size", type=int, default=63)
     parser.add_argument("--greedy", action="store_true")
     parser.add_argument("--name", type=str, default="battle")
     parser.add_argument("--eval", action="store_true")
@@ -158,14 +158,14 @@ if __name__ == "__main__":
     models = []
     if args.alg == 'dqn':
         from magent.builtin.tf_model import DeepQNetwork
-        models.append(DeepQNetwork(env, handles[0], "battle",
+        models.append(DeepQNetwork(env, handles[0], args.name,
                                    batch_size=batch_size,
                                    learning_rate=3e-4,
-                                   memory_size=2 ** 21, target_update=target_update,
+                                   memory_size=2 ** 18, target_update=target_update,
                                    train_freq=train_freq, eval_obs=eval_obs))
     elif args.alg == 'drqn':
         from magent.builtin.tf_model import DeepRecurrentQNetwork
-        models.append(DeepRecurrentQNetwork(env, handles[0], "battle",
+        models.append(DeepRecurrentQNetwork(env, handles[0], args.name,
                                    learning_rate=3e-4,
                                    batch_size=batch_size/unroll_step, unroll_step=unroll_step,
                                    memory_size=2 * 8 * 625, target_update=target_update,
