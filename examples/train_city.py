@@ -36,14 +36,24 @@ def generate_map(env, map_size, handles):
     agent_dense = 0.1
     num_park = 18
 
-    building_min_height = 8
+    building_min_height = 4
     building_max_height = 50
-    building_min_width = 8
+    building_min_width = 4
     building_max_width = 50
-    major_road_height = 8
-    major_road_width = 8
-    minor_road_height = 4
-    minor_road_width = 4
+    major_road_height = 6
+    major_road_width = 6
+    minor_road_height = 2
+    minor_road_width = 2
+
+
+    # building_min_height =8
+    # building_max_height = 50
+    # building_min_width = 8
+    # building_max_width = 50
+    # major_road_height = 8
+    # major_road_width = 8
+    # minor_road_height = 4
+    # minor_road_width = 4
 
     major_road_wnum = 2
     major_road_hnum = 2
@@ -73,7 +83,7 @@ def generate_map(env, map_size, handles):
     block_height = (map_height - 2 * minor_road_height - major_road_hnum * major_road_height) / (major_road_hnum + 1)
 
     building_width = None
-    print(block_width)
+    print("block size:", block_width, block_height)
     for width in range(building_min_width, building_max_width + 1):
         if (block_width + minor_road_width) % (width + minor_road_width) == 0:
             building_width = width
@@ -87,8 +97,8 @@ def generate_map(env, map_size, handles):
             break
     assert building_height is not None
 
-    block_building_wnum = (block_width + minor_road_width) // (building_width + minor_road_width)
-    block_building_hnum = (block_height + minor_road_height) // (building_height + minor_road_height)
+    block_building_wnum = int((block_width + minor_road_width) // (building_width + minor_road_width))
+    block_building_hnum = int((block_height + minor_road_height) // (building_height + minor_road_height))
 
     region_buildings = []
     for i in range(major_road_wnum + 1):
@@ -252,6 +262,7 @@ def generate_map(env, map_size, handles):
     filled = set()
     for pos in building_pos + light_pos:
         x0, y0, w, h = pos[:4]
+        x0, y0 = int(x0), int(y0)
         for x in range(x0, x0 + w):
             for y in range(y0, y0 + h):
                 filled.add((x, y))
