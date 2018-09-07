@@ -405,6 +405,15 @@ class GridWorld(Environment):
         """
         return self.action_space[handle.value]
 
+    def get_comm_channel(self, handle):
+        """get action space
+
+        Returns
+        -------
+        action_space : tuple
+        """
+        return self.comm_channels[handle.value]
+
     def get_view_space(self, handle):
         """get view space
 

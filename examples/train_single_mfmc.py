@@ -167,8 +167,8 @@ if __name__ == "__main__":
     models = []
     init_a_round(env, args.map_size, handles)
     if args.alg == 'dqn':
-        from magent.builtin.tf_model import DeepQNetwork
-        models.append(DeepQNetwork(env, handles[0], args.name,
+        from magent.builtin.tf_model import DeepQNetwork_MC
+        models.append(DeepQNetwork_MC(env, handles[0], args.name,
                                    batch_size=batch_size,
                                    learning_rate=3e-4,
                                    memory_size=2 ** 18, target_update=target_update,

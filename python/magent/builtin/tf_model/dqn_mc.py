@@ -60,6 +60,7 @@ class DeepQNetwork_MC(TFBaseModel):
         self.view_space = custom_view_space or env.get_view_space(handle)
         self.feature_space = custom_feature_space or env.get_feature_space(handle)
         self.num_actions  = env.get_action_space(handle)[0]
+        self.num_comm_channels = env.get_comm_channel(handle)[0]
 
         self.batch_size   = batch_size
         self.learning_rate= learning_rate
@@ -102,7 +103,7 @@ class DeepQNetwork_MC(TFBaseModel):
 
         # loss
         self.gamma = reward_decay
-        self.actions_onehot = tf.one_hot(self.action, self.num_actions)
+        self.actions_onehot = tf.one_hot(self.action, self.num_actions + self.num_comm_channels)
         td_error = tf.square(self.target - tf.reduce_sum(tf.multiply(self.actions_onehot, self.qvalues), axis=1))
         self.loss = tf.reduce_sum(td_error * self.mask) / tf.reduce_sum(self.mask)
 
@@ -114,7 +115,7 @@ class DeepQNetwork_MC(TFBaseModel):
 
         # output action
         def out_action(qvalues):
-            best_action = tf.argmax(qvalues, axis=1)
+            best_action = tf.argmax(qvalues[:self.num_actions], axis=1)
             best_action = tf.to_int32(best_action)
             random_action = tf.random_uniform(tf.shape(best_action), 0, self.num_actions, tf.int32)
             should_explore = tf.random_uniform(tf.shape(best_action), 0, 1) < self.eps
@@ -126,9 +127,9 @@ class DeepQNetwork_MC(TFBaseModel):
 
         #output speak_channel
         def out_speak_channel(qvalues):
-            best_speak_channel = tf.argmax(qvalues, axis=1)
+            best_speak_channel = tf.argmax(qvalues[-self.num_comm_channels:], axis=1)
             best_speak_channel = tf.to_int32(best_speak_channel)
-            random_action = tf.random_uniform(tf.shape(best_speak_channel), 0, self.num_actions, tf.int32)
+            random_action = tf.random_uniform(tf.shape(best_speak_channel), 0, self.num_comm_channels, tf.int32)
             should_explore = tf.random_uniform(tf.shape(best_speak_channel), 0, 1) < self.eps
             return tf.where(should_explore, random_action, best_speak_channel)
 
@@ -190,12 +191,12 @@ class DeepQNetwork_MC(TFBaseModel):
 
         if self.use_dueling:
             value = tf.layers.dense(dense, units=1, name="value", reuse=reuse)
-            advantage = tf.layers.dense(dense, units=self.num_actions, use_bias=False,
+            advantage = tf.layers.dense(dense, units=self.num_actions+self.num_comm_channels, use_bias=False,
                                         name="advantage", reuse=reuse)
 
             qvalues = value + advantage - tf.reduce_mean(advantage, axis=1, keep_dims=True)
         else:
-            qvalues = tf.layers.dense(dense, units=self.num_actions, name="value", reuse=reuse)
+            qvalues = tf.layers.dense(dense, units=self.num_actions+self.num_comm_channels, name="value", reuse=reuse)
 
         return qvalues
 
