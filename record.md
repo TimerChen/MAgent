@@ -8,7 +8,7 @@ In python
 
 * magent/gridworld.py
 
-* magent/builtin/tf_model/dqn_mf.py
+* magent/builtin/tf_model/dqn_mc.py
 
 
 In Cpp

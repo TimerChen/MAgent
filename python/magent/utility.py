@@ -20,14 +20,16 @@ class EpisodesBufferEntry:
         self.actions = []
         self.rewards = []
         self.terminal = False
+        self.speak_channel = []
 
-    def append(self, view, feature, action, reward, alive):
+    def append(self, view, feature, action, reward, alive, speak_channel):
         self.views.append(view.copy())
         self.features.append(feature.copy())
         self.actions.append(action)
         self.rewards.append(reward)
         if not alive:
             self.terminal = True
+        self.speak_channel.append(speak_channel)
 
 
 class EpisodesBuffer:
@@ -39,7 +41,7 @@ class EpisodesBuffer:
         self.capacity = capacity
         self.is_full = False
 
-    def record_step(self, ids, obs, acts, rewards, alives):
+    def record_step(self, ids, obs, acts, rewards, alives, speak_channel=None):
         """record transitions (s, a, r, terminal) in a step"""
         buffer = self.buffer
         index = np.random.permutation(len(ids))
@@ -49,7 +51,8 @@ class EpisodesBuffer:
                 entry = buffer.get(ids[i])
                 if entry is None:
                     continue
-                entry.append(obs[0][i], obs[1][i], acts[i], rewards[i], alives[i])
+                entry.append(obs[0][i], obs[1][i], acts[i], rewards[i], alives[i],
+                             1 if speak_channel is None else speak_channel[i])
         else:
             for i in range(len(ids)):
                 i = index[i]
@@ -63,7 +66,8 @@ class EpisodesBuffer:
                         if len(buffer) >= self.capacity:
                             self.is_full = True
 
-                entry.append(obs[0][i], obs[1][i], acts[i], rewards[i], alives[i])
+                entry.append(obs[0][i], obs[1][i], acts[i], rewards[i], alives[i],
+                             1 if speak_channel is None else speak_channel[i])
 
     def reset(self):
         """ clear replay buffer """

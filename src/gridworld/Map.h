@@ -61,7 +61,8 @@ public:
                             const int *channel_trans, const Range *range,
                           int view_x_offset, int view_y_offset,
                           int view_left_top_x, int view_left_top_y,
-                          int view_right_bottom_x, int view_right_bottom_y) const;
+                          int view_right_bottom_x, int view_right_bottom_y,
+                           int comm_channels=1, bool hear_all_group=false) const;
 
     PositionInteger get_attack_obj(const AttackAction &attack, int &obj_x, int &obj_y) const;
     Reward do_attack(Agent *agent, PositionInteger pos_int, GroupHandle &dead_group);

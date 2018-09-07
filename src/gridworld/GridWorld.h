@@ -46,8 +46,9 @@ public:
 
     // run step
     void get_observation(GroupHandle group, float **linear_buffers) override;
-    void get_mean_observation(GroupHandle group, float **linear_buffers);
-    void get_mean_action(GroupHandle group, float *linear_buffers);
+    void get_mean_observation(GroupHandle group, float **linear_buffers) override;
+    void get_mean_action(GroupHandle group, float *linear_buffers) override;
+    void set_speak_channel(GroupHandle group, const int *speak_channel) override;
     void set_action(GroupHandle group, const int *actions) override;
     void step(int *done) override;
     void get_reward(GroupHandle group, float *buffer) override;
@@ -140,6 +141,7 @@ public:
         dir = Direction(rand() % 4);
         hp = type.hp;
         last_action = static_cast<Action>(type.action_space.size()); // dangerous here !
+        last_speak_channel = 0;
         next_reward = 0;
 
         tmpid = 0;
@@ -241,6 +243,9 @@ public:
     void set_involved(bool value) { be_involved = value; }
     bool get_involved() { return be_involved; }
 
+    void set_speak_channel(int channel) { last_speak_channel = channel; }
+    int get_speak_channel()         { return last_speak_channel; }
+
     void set_action(Action act) { last_action = act; }
     Action get_action()         { return last_action; }
 
@@ -301,6 +306,7 @@ private:
     EventOp last_op;
     void *op_obj;
 
+    int last_speak_channel;
     Action last_action;
     Reward next_reward, last_reward;
     AgentType &type;

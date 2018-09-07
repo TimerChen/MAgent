@@ -209,7 +209,8 @@ void Map::extract_mean_view(Agent *agent, NDPointer<float, 4> view_buffer, NDPoi
                         const int *channel_trans, const Range *range,
                        int view_x_offset, int view_y_offset,
                        int view_left_top_x, int view_left_top_y,
-                       int view_right_bottom_x, int view_right_bottom_y) const {
+                       int view_right_bottom_x, int view_right_bottom_y,
+                       int comm_channels, bool hear_all_group) const {
     // convert coordinates between absolute map and relative view
     Direction dir = agent->get_dir();
 
@@ -276,29 +277,37 @@ void Map::extract_mean_view(Agent *agent, NDPointer<float, 4> view_buffer, NDPoi
                 if (slots[pos_int].occupier != nullptr && slots[pos_int].occ_type == OCC_AGENT) { // is agent
                     Agent *p = ((Agent *) slots[pos_int].occupier);
                     //another agent in a group
-                    if(p->get_group() != agent->get_group() ||
-                       p == agent)
+                    if((p->get_group() != agent->get_group() ||
+                       p == agent) && !hear_all_group)
                         continue;
                     agent->mean_number += 1;
 
                     int length = 0;
+                    int speak_channel = 0, channel_base = 0;
                     float *copy_from;
 
                     //total view
                     copy_from = &view_buffer.at(p->get_tmpid(),0,0,0);
                     length = agent->mean_info_size[0];
+
+                    speak_channel = agent->get_speak_channel();
+                    channel_base = length / comm_channels * speak_channel;
+
                     for(int i=0; i<length; ++i)
-                        agent->mean_info[0][i] += copy_from[i];
+                        agent->mean_info[0][channel_base + i] += copy_from[i];
 
                     //total feature
                     copy_from = &feature_buffer.at(p->get_tmpid(),0);
                     length = agent->mean_info_size[1];
+                    channel_base = length / comm_channels * speak_channel;
                     for(int i=0; i<length; ++i)
-                        agent->mean_info[1][i] += copy_from[i];
+                        agent->mean_info[1][channel_base + i] += copy_from[i];
 
                     //total action
+
+                    channel_base = (int)agent->mean_info_size[2] / comm_channels * speak_channel;
                     if(p->get_action() < agent->mean_info_size[2])
-                        agent->mean_info[2][p->get_action()] += 1;
+                        agent->mean_info[2][channel_base + p->get_action()] += 1;
 
                 }
             }

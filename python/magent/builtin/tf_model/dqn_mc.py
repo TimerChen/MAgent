@@ -9,7 +9,7 @@ from .base import TFBaseModel
 from ..common import ReplayBuffer
 
 
-class DeepQNetwork_MF(TFBaseModel):
+class DeepQNetwork_MC(TFBaseModel):
     def __init__(self, env, handle, name,
                  batch_size=64, learning_rate=1e-4, reward_decay=0.99,
                  train_freq=1, target_update=2000, memory_size=2 ** 20, eval_obs=None,
@@ -53,7 +53,7 @@ class DeepQNetwork_MF(TFBaseModel):
         custom_view_space: tuple
             customized feature space
         """
-        TFBaseModel.__init__(self, env, handle, name, "tfdqn_mf")
+        TFBaseModel.__init__(self, env, handle, name, "tfdqn_mc")
         # ======================== set config  ========================
         self.env = env
         self.handle = handle
@@ -124,6 +124,16 @@ class DeepQNetwork_MF(TFBaseModel):
         if self.num_gpu > 1:
             self.infer_out_action = [out_action(qvalue) for qvalue in self.infer_qvalues]
 
+        #output speak_channel
+        def out_speak_channel(qvalues):
+            best_speak_channel = tf.argmax(qvalues, axis=1)
+            best_speak_channel = tf.to_int32(best_speak_channel)
+            random_action = tf.random_uniform(tf.shape(best_speak_channel), 0, self.num_actions, tf.int32)
+            should_explore = tf.random_uniform(tf.shape(best_speak_channel), 0, 1) < self.eps
+            return tf.where(should_explore, random_action, best_speak_channel)
+
+        self.output_speak_channel = out_speak_channel(self.qvalues)
+
         # target network update op
         self.update_target_op = []
         t_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, self.target_scope_name)
@@ -143,6 +153,7 @@ class DeepQNetwork_MF(TFBaseModel):
         self.replay_buf_view     = ReplayBuffer(shape=(memory_size,) + self.view_space)
         self.replay_buf_feature  = ReplayBuffer(shape=(memory_size,) + self.feature_space)
         self.replay_buf_action   = ReplayBuffer(shape=(memory_size,), dtype=np.int32)
+        self.replay_buf_speak_cha= ReplayBuffer(shape=(memory_size,), dtype=np.int32)
         self.replay_buf_reward   = ReplayBuffer(shape=(memory_size,))
         self.replay_buf_terminal = ReplayBuffer(shape=(memory_size,), dtype=np.bool)
         self.replay_buf_mask     = ReplayBuffer(shape=(memory_size,))
@@ -158,7 +169,7 @@ class DeepQNetwork_MF(TFBaseModel):
             the input tensor
         """
         kernel_num  = [32, 32]
-        hidden_size = [256]
+        hidden_size = [128]
 
         if use_conv:  # convolution
             h_conv1 = tf.layers.conv2d(input_view, filters=kernel_num[0], kernel_size=3,
@@ -230,6 +241,47 @@ class DeepQNetwork_MF(TFBaseModel):
             ret = np.concatenate(ret)
         return ret
 
+    def infer_speak_channel(self, raw_obs, ids, policy='e_greedy', eps=0):
+        """infer action for a batch of agents
+
+        Parameters
+        ----------
+        raw_obs: tuple(numpy array, numpy array)
+            raw observation of agents tuple(views, features)
+        ids: numpy array
+            ids of agents
+        policy: str
+            can be eps-greedy or greedy
+        eps: float
+            used when policy is eps-greedy
+
+        Returns
+        -------
+        acts: numpy array of int32
+            actions for agents
+        """
+        view, feature = raw_obs[0], raw_obs[1]
+
+        if policy == 'e_greedy':
+            eps = eps
+        elif policy == 'greedy':
+            eps = 0
+
+        n = len(view)
+        batch_size = min(n, self.infer_batch_size)
+
+        # Do not support multi-gpu
+        # infer by splitting big batch in serial
+        ret = []
+        for i in range(0, n, batch_size):
+            beg, end = i, i + batch_size
+            ret.append(self.sess.run(self.output_speak_channel, feed_dict={
+                self.input_view: view[beg:end],
+                self.input_feature: feature[beg:end],
+                self.eps: eps}))
+        ret = np.concatenate(ret)
+        return ret
+
     def _calc_target(self, next_view, next_feature, rewards, terminal):
         """calculate target value"""
         n = len(rewards)
@@ -251,7 +303,7 @@ class DeepQNetwork_MF(TFBaseModel):
         """add samples in sample_buffer to replay buffer"""
         n = 0
         for episode in sample_buffer.episodes():
-            v, f, a, r = episode.views, episode.features, episode.actions, episode.rewards
+            v, f, a, sc, r = episode.views, episode.features, episode.actions, episode.speak_cha, episode.rewards
 
             m = len(r)
 
@@ -265,6 +317,7 @@ class DeepQNetwork_MF(TFBaseModel):
             self.replay_buf_view.put(v)
             self.replay_buf_feature.put(f)
             self.replay_buf_action.put(a)
+            self.replay_buf_speak_cha.put(sc)
             self.replay_buf_reward.put(r)
             self.replay_buf_terminal.put(terminal)
             self.replay_buf_mask.put(mask)

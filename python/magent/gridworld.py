@@ -109,6 +109,7 @@ class GridWorld(Environment):
         self.mean_view_space = {}
         self.mean_feature_space = {}
         self.mean_action_space = {}
+        self.comm_channels = {}
 
         buf = np.empty((3,), dtype=np.int32)
         for handle in self.group_handles:
@@ -122,15 +123,19 @@ class GridWorld(Environment):
                                   buf.ctypes.data_as(ctypes.POINTER(ctypes.c_int32)))
             self.action_space[handle.value] = (buf[0],)
 
+            _LIB.env_get_info(self.game, handle, b"comm_channels",
+                              buf.ctypes.data_as(ctypes.POINTER(ctypes.c_int32)))
+            self.comm_channels[handle.value] = (buf[0],)
+            comm_cha = buf[0]
             _LIB.env_get_info(self.game, handle, b"mean_view_space",
                               buf.ctypes.data_as(ctypes.POINTER(ctypes.c_int32)))
-            self.mean_view_space[handle.value] = (buf[0], buf[1], buf[2])
+            self.mean_view_space[handle.value] = (buf[0]*comm_cha, buf[1], buf[2])
             _LIB.env_get_info(self.game, handle, b"mean_feature_space",
                               buf.ctypes.data_as(ctypes.POINTER(ctypes.c_int32)))
-            self.mean_feature_space[handle.value] = (buf[0],)
+            self.mean_feature_space[handle.value] = (buf[0]*comm_cha,)
             _LIB.env_get_info(self.game, handle, b"mean_action_space",
                               buf.ctypes.data_as(ctypes.POINTER(ctypes.c_int32)))
-            self.mean_action_space[handle.value] = (buf[0],)
+            self.mean_action_space[handle.value] = (buf[0]*comm_cha,)
 
 
     def reset(self):
@@ -334,6 +339,19 @@ class GridWorld(Environment):
         assert isinstance(actions, np.ndarray)
         assert actions.dtype == np.int32
         _LIB.env_set_action(self.game, handle, actions.ctypes.data_as(ctypes.POINTER(ctypes.c_int32)))
+
+    def set_speak_channel(self, handle, speak_channel):
+        """ set speak channels for whole group
+
+        Parameters
+        ----------
+        handle: group handle
+        speak_channel: numpy array
+            the dtype of speak_channel must be int32
+        """
+        assert isinstance(speak_channel, np.ndarray)
+        assert speak_channel.dtype == np.int32
+        _LIB.env_set_speak_channel(self.game, handle, speak_channel.ctypes.data_as(ctypes.POINTER(ctypes.c_int32)))
 
     def step(self):
         """simulation one step after set actions

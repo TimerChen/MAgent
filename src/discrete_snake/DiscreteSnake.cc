@@ -401,5 +401,17 @@ void DiscreteSnake::render_next_file(){
     render_generator.next_file();
 }
 
+void DiscreteSnake::get_mean_observation(GroupHandle group, float **linear_buffers) {
+    //unsupported function
+}
+
+    void DiscreteSnake::get_mean_action(GroupHandle group, float *linear_buffers) {
+        //unsupported function
+    }
+
+void DiscreteSnake::set_speak_channel(GroupHandle group, const int *speak_channel) {
+    //unsupported function
+}
+
 } // namespace discrete_snake
 } // namespace magent

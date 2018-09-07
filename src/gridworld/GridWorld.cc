@@ -300,6 +300,7 @@ void GridWorld::get_observation(GroupHandle group, float **linear_buffers) {
     const int n_action = (int)type.action_space.size();
     const int feature_size = get_feature_size(group);
     const int comm_channel = g.get_type().comm_channel;
+    const bool hear_all_group = g.get_type().hear_all_group;
 
     std::vector<Agent*> &agents = g.get_agents();
     size_t agent_size = agents.size();
@@ -430,7 +431,8 @@ void GridWorld::get_observation(GroupHandle group, float **linear_buffers) {
             map.extract_mean_view(agent, view_buffer, feature_buffer,
                                   &channel_trans[0], range,
                                   view_x_offset, view_y_offset,
-                                  view_left_top_x, view_left_top_y, view_right_bottom_x, view_right_bottom_y);
+                                  view_left_top_x, view_left_top_y, view_right_bottom_x, view_right_bottom_y,
+                                  comm_channel, hear_all_group);
         }
     }
 
@@ -558,6 +560,16 @@ void GridWorld::get_mean_action(GroupHandle group, float *linear_buffers)
         //Error
     }
     minimap_mode = local_mini;
+}
+
+void GridWorld::set_speak_channel(GroupHandle group, const int *speak_channel) {
+    std::vector<Agent*> &agents = groups[group].get_agents();
+    size_t agent_size = agents.size();
+
+    for (int i = 0; i < agent_size; i++) {
+        Agent *agent = agents[i];
+        agent->set_speak_channel(speak_channel[i]);
+    }
 }
 
 void GridWorld::set_action(GroupHandle group, const int *actions) {
@@ -1022,6 +1034,8 @@ void GridWorld::get_info(GroupHandle group, const char *name, void *void_buffer)
         int_buffer[0] = get_feature_size(group);
         if(minimap_mode)
             int_buffer[0] -= 2;
+    } else if (strequ(name, "comm_channels")) {
+        int_buffer[0] = groups[group].get_type().comm_channel;
     } else if (strequ(name, "view2attack")) {
         const AgentType &type = groups[group].get_type();
         const Range *range = type.attack_range;

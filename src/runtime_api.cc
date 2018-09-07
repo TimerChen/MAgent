@@ -53,26 +53,32 @@ int env_get_observation(EnvHandle game, GroupHandle group, float **buffer) {
 }
 int env_get_mean_observation(EnvHandle game, GroupHandle group, float **buffer) {
     LOG(TRACE) << "env get mean observation.  ";
-    if(typeid(*game) == typeid(magent::gridworld::GridWorld))
+    if(typeid(*game) == typeid(magent::discrete_snake::DiscreteSnake))
     {
-        ((magent::gridworld::GridWorld*)game)->get_mean_observation(group, buffer);
-        return 0;
-    }else{
         LOG(TRACE) << "Thie env cannot get mean observation.  ";
         return 1;
+    }else{
+        ((magent::gridworld::GridWorld*)game)->get_mean_observation(group, buffer);
+        return 0;
     }
 }
 
 int env_get_mean_action(EnvHandle game, GroupHandle group, float *buffer) {
     LOG(TRACE) << "env get mean observation.  ";
-    if(typeid(*game) == typeid(magent::gridworld::GridWorld))
+    if(typeid(*game) == typeid(magent::discrete_snake::DiscreteSnake))
     {
-        ((magent::gridworld::GridWorld*)game)->get_mean_action(group, buffer);
-        return 0;
-    }else{
         LOG(TRACE) << "Thie env cannot get mean action.  ";
         return 1;
+    }else{
+        game->get_mean_action(group, buffer);
+        return 0;
     }
+}
+
+int env_set_speak_channel(EnvHandle game, GroupHandle group, const int *speak_channel) {
+    LOG(TRACE) << "env set speak_channel.  ";
+    game->set_speak_channel(group, speak_channel);
+    return 0;
 }
 
 int env_set_action(EnvHandle game, GroupHandle group, const int *actions) {

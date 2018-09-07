@@ -42,6 +42,12 @@ public:
 
     void add_object(int obj_id, int n, const char *method, const int *linear_buffer);
 
+    void get_mean_observation(GroupHandle group, float **linear_buffers) override;
+
+    void set_speak_channel(GroupHandle group, const int *speak_channel) override;
+
+    void get_mean_action(GroupHandle group, float *linear_buffers) override;
+
 private:
     Map map;
     std::vector<Agent*> agents;

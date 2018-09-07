@@ -22,6 +22,9 @@ public:
     // run step
     virtual void reset() = 0;
     virtual void get_observation(GroupHandle group, float **linear_buffers) = 0;
+    virtual void get_mean_observation(GroupHandle group, float **linear_buffers) = 0;
+    virtual void get_mean_action(GroupHandle group, float *linear_buffers) = 0;
+    virtual void set_speak_channel(GroupHandle group, const int *speak_channel) = 0;
     virtual void set_action(GroupHandle group, const int *actions) = 0;
     virtual void step(int *done) = 0;
     virtual void get_reward(GroupHandle group, float *buffer) = 0;
