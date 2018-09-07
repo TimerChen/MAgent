@@ -299,6 +299,7 @@ void GridWorld::get_observation(GroupHandle group, float **linear_buffers) {
     const int n_group = (int)groups.size();
     const int n_action = (int)type.action_space.size();
     const int feature_size = get_feature_size(group);
+    const int comm_channel = g.get_type().comm_channel;
 
     std::vector<Agent*> &agents = g.get_agents();
     size_t agent_size = agents.size();

@@ -162,7 +162,11 @@ public:
 
     void init_mean_info(int view_size, int feature_size, int action_size)
     {
+        const int comm_channel = get_type().comm_channel;
         int new_value[3] = {view_size, feature_size, action_size};
+        for(int i=0;i<3;++i)
+            new_value[i] *= comm_channel;
+
         mean_number = 0;
         for(int i=0;i<3;++i)
         {
