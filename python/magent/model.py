@@ -210,6 +210,46 @@ class ProcessingModel(BaseModel):
         info = self.conn.recv()
         return NDArrayPackage(info).recv_from(self.conn)[0]
 
+    def infer_speak_channel(self, raw_obs, ids, policy='e_greedy', eps=0, block=True):
+        """ infer speak_channel
+
+        Parameters
+        ----------
+        policy: str
+            can be 'e_greedy' or 'greedy'
+        eps: float
+            used when policy is 'e_greedy'
+        block: bool
+            if it is True, the function call will block, and return actions
+            if it is False, the function call won't block, the caller
+                            must call fetch_action() to get actions
+
+        Returns
+        -------
+        actions: numpy array (int32)
+            see above
+        """
+
+        package = NDArrayPackage(raw_obs[0], raw_obs[1], ids)
+        self.conn.send(["s_c", policy, eps, package.info])
+        package.send_to(self.conn, use_thread=True)
+
+        if block:
+            info = self.conn.recv()
+            return NDArrayPackage(info).recv_from(self.conn)[0]
+        else:
+            return None
+
+    def fetch_speak_channel(self):
+        """ fetch speak_channel , fetch action after calling infer_speak_channel(block=False)
+
+        Returns
+        -------
+        actions: numpy array (int32)
+        """
+        info = self.conn.recv()
+        return NDArrayPackage(info).recv_from(self.conn)[0]
+
     def train(self, print_every=5000, block=True):
         """ train new data samples according to the model setting
 
@@ -308,6 +348,18 @@ def model_client(addr, sample_buffer_capacity, RLModel, model_args):
 
             acts = model.infer_action(obs, ids, policy=policy, eps=eps)
             package = NDArrayPackage(acts)
+            conn.send(package.info)
+            package.send_to(conn)
+        if cmd[0] == 's_c':
+            policy = cmd[1]
+            eps = cmd[2]
+            array_info = cmd[3]
+
+            view, feature, ids = NDArrayPackage(array_info).recv_from(conn)
+            obs = (view, feature)
+
+            speak_channel = model.infer_speak_channel(obs, ids, policy=policy, eps=eps)
+            package = NDArrayPackage(speak_channel)
             conn.send(package.info)
             package.send_to(conn)
         elif cmd[0] == 'train':

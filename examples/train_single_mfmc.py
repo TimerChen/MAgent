@@ -83,7 +83,7 @@ def play_a_round(env, map_size, handles, models, print_every, train=True, render
             rewards = env.get_reward(handles[i])
             if train:
                 alives = env.get_alive(handles[i])
-                sample_buffer.record_step(ids[i], obs[i], acts[i], rewards, alives, speak_channel)
+                sample_buffer.record_step(ids[i], obs[i], acts[i], rewards, alives, speak_channel[i])
             s = sum(rewards)
             step_reward.append(s)
             total_reward[i] += s
@@ -102,7 +102,7 @@ def play_a_round(env, map_size, handles, models, print_every, train=True, render
             print("step %3d,  nums: %s reward: %s,  total_reward: %s " %
                   (step_ct, nums, np.around(step_reward, 2), np.around(total_reward, 2)))
         step_ct += 1
-        if step_ct > 550:
+        if step_ct > 50:
             break
 
     sample_time = time.time() - start_time
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     log.getLogger('').addHandler(console)
 
     # init the game
-    env = magent.GridWorld("battle", map_size=args.map_size)
+    env = magent.GridWorld("battle_mc", map_size=args.map_size)
     env.set_render_dir("build/render")
 
     # two groups of agents
@@ -164,6 +164,9 @@ if __name__ == "__main__":
     target_update = 1200
     train_freq = 5
 
+    feature_space = (env.get_feature_space(handles[0])[0] + env.get_mean_action_space(handles[0])[0],)
+    print(env.get_feature_space(handles[0])[0],env.get_mean_action_space(handles[0])[0])
+
     models = []
     init_a_round(env, args.map_size, handles)
     if args.alg == 'dqn':
@@ -173,7 +176,7 @@ if __name__ == "__main__":
                                    learning_rate=3e-4,
                                    memory_size=2 ** 18, target_update=target_update,
                                    train_freq=train_freq, eval_obs=eval_obs,
-                                   custom_feature_space = (env.get_feature_space(handles[0])[0] + env.get_mean_action_space(handles[0])[0],)
+                                   custom_feature_space = feature_space
                                    ))
     elif args.alg == 'drqn':
         from magent.builtin.tf_model import DeepRecurrentQNetwork

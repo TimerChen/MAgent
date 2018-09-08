@@ -85,6 +85,7 @@ class DeepQNetwork_MC(TFBaseModel):
         self.input_view    = tf.placeholder(tf.float32, (None,) + self.view_space)
         self.input_feature = tf.placeholder(tf.float32, (None,) + self.feature_space)
         self.action = tf.placeholder(tf.int32, [None])
+        self.spk_cha = tf.placeholder(tf.int32, [None])
         self.mask   = tf.placeholder(tf.float32, [None])
         self.eps = tf.placeholder(tf.float32)  # e-greedy
 
@@ -103,8 +104,10 @@ class DeepQNetwork_MC(TFBaseModel):
 
         # loss
         self.gamma = reward_decay
-        self.actions_onehot = tf.one_hot(self.action, self.num_actions + self.num_comm_channels)
-        td_error = tf.square(self.target - tf.reduce_sum(tf.multiply(self.actions_onehot, self.qvalues), axis=1))
+        self.actions_onehot = tf.one_hot(self.action, self.num_actions)
+        self.spk_cha_onehot = tf.one_hot(self.spk_cha, self.num_comm_channels)
+        self.output_onehot = tf.concat([self.actions_onehot,self.spk_cha_onehot], 1)
+        td_error = tf.square(self.target - tf.reduce_sum(tf.multiply(self.output_onehot, self.qvalues), axis=1))
         self.loss = tf.reduce_sum(td_error * self.mask) / tf.reduce_sum(self.mask)
 
         # train op (clip gradient)
@@ -115,7 +118,7 @@ class DeepQNetwork_MC(TFBaseModel):
 
         # output action
         def out_action(qvalues):
-            best_action = tf.argmax(qvalues[:self.num_actions], axis=1)
+            best_action = tf.argmax(qvalues[:,:self.num_actions], axis=1)
             best_action = tf.to_int32(best_action)
             random_action = tf.random_uniform(tf.shape(best_action), 0, self.num_actions, tf.int32)
             should_explore = tf.random_uniform(tf.shape(best_action), 0, 1) < self.eps
@@ -127,11 +130,11 @@ class DeepQNetwork_MC(TFBaseModel):
 
         #output speak_channel
         def out_speak_channel(qvalues):
-            best_speak_channel = tf.argmax(qvalues[-self.num_comm_channels:], axis=1)
+            best_speak_channel = tf.argmax(qvalues[:,-self.num_comm_channels:], axis=1)
             best_speak_channel = tf.to_int32(best_speak_channel)
-            random_action = tf.random_uniform(tf.shape(best_speak_channel), 0, self.num_comm_channels, tf.int32)
+            random_channel = tf.random_uniform(tf.shape(best_speak_channel), 0, self.num_comm_channels, tf.int32)
             should_explore = tf.random_uniform(tf.shape(best_speak_channel), 0, 1) < self.eps
-            return tf.where(should_explore, random_action, best_speak_channel)
+            return tf.where(should_explore, random_channel, best_speak_channel)
 
         self.output_speak_channel = out_speak_channel(self.qvalues)
 
@@ -290,6 +293,9 @@ class DeepQNetwork_MC(TFBaseModel):
             t_qvalues, qvalues = self.sess.run([self.target_qvalues, self.qvalues],
                                                feed_dict={self.input_view: next_view,
                                                           self.input_feature: next_feature})
+            print("isnan?")
+            print(np.any(np.isnan(t_qvalues)))
+            print(np.any(np.isnan(qvalues)))
             next_value = t_qvalues[np.arange(n), np.argmax(qvalues, axis=1)]
         else:
             t_qvalues = self.sess.run(self.target_qvalues, {self.input_view: next_view,
@@ -304,7 +310,7 @@ class DeepQNetwork_MC(TFBaseModel):
         """add samples in sample_buffer to replay buffer"""
         n = 0
         for episode in sample_buffer.episodes():
-            v, f, a, sc, r = episode.views, episode.features, episode.actions, episode.speak_cha, episode.rewards
+            v, f, a, sc, r = episode.views, episode.features, episode.actions, episode.speak_channel, episode.rewards
 
             m = len(r)
 
@@ -365,6 +371,7 @@ class DeepQNetwork_MC(TFBaseModel):
             batch_view     = self.replay_buf_view.get(index)
             batch_feature  = self.replay_buf_feature.get(index)
             batch_action   = self.replay_buf_action.get(index)
+            batch_spk_cha  = self.replay_buf_speak_cha.get(index)
             batch_reward   = self.replay_buf_reward.get(index)
             batch_terminal = self.replay_buf_terminal.get(index)
             batch_mask     = self.replay_buf_mask.get(index)
@@ -379,6 +386,7 @@ class DeepQNetwork_MC(TFBaseModel):
                 self.input_view:    batch_view,
                 self.input_feature: batch_feature,
                 self.action:        batch_action,
+                self.spk_cha:       batch_spk_cha,
                 self.target:        batch_target,
                 self.mask:          batch_mask
             })

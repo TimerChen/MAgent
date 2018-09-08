@@ -282,33 +282,39 @@ void Map::extract_mean_view(Agent *agent, NDPointer<float, 4> view_buffer, NDPoi
                         continue;
                     agent->mean_number += 1;
 
-                    int length = 0;
+                    int length = 0, s_length;
                     int speak_channel = 0, channel_base = 0;
                     float *copy_from;
 
                     //total view
                     copy_from = &view_buffer.at(p->get_tmpid(),0,0,0);
                     length = agent->mean_info_size[0];
+                    s_length = length / comm_channels;
 
                     speak_channel = agent->get_speak_channel();
-                    channel_base = length / comm_channels * speak_channel;
+                    channel_base = s_length * speak_channel;
 
-                    for(int i=0; i<length; ++i)
+
+                    for(int i=0; i<s_length; ++i)
                         agent->mean_info[0][channel_base + i] += copy_from[i];
 
                     //total feature
                     copy_from = &feature_buffer.at(p->get_tmpid(),0);
                     length = agent->mean_info_size[1];
-                    channel_base = length / comm_channels * speak_channel;
-                    for(int i=0; i<length; ++i)
+                    s_length = length / comm_channels;
+                    channel_base = s_length * speak_channel;
+                    for(int i=0; i<s_length; ++i)
                         agent->mean_info[1][channel_base + i] += copy_from[i];
 
                     //total action
 
-                    channel_base = (int)agent->mean_info_size[2] / comm_channels * speak_channel;
-                    if(p->get_action() < agent->mean_info_size[2])
-                        agent->mean_info[2][channel_base + p->get_action()] += 1;
+                    s_length = (int)agent->mean_info_size[2] / comm_channels;
+                    channel_base = s_length * speak_channel;
 
+                    if(p->get_action() < s_length)
+                        agent->mean_info[2][channel_base + p->get_action()] += 1;
+                    //LOG(TRACE) << comm_channels << " "<<speak_channel << " ";
+                    //LOG(TRACE) << "index:"<<channel_base+s_length-1 << "vs" << (int)agent->mean_info_size[2] <<"   ";
                 }
             }
 
