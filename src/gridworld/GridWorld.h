@@ -145,7 +145,7 @@ public:
         next_reward = 0;
 
         tmpid = 0;
-        mean_number = 0;
+        mean_number = nullptr;
         mean_info[0] = mean_info[1] = mean_info[2] = nullptr;
         mean_info_size[0] = mean_info_size[1] = mean_info_size[2] = 0;
 
@@ -154,12 +154,12 @@ public:
 
     ~Agent() {
         for(int i=0;i<3;++i)
-            if(mean_info[i]!= nullptr)
-                delete [] mean_info[i];
+            delete [] mean_info[i];
+        delete [] mean_number;
     }
 
     float* mean_info[3];
-    int mean_number;
+    int *mean_number;
     size_t mean_info_size[3];
 
     void init_mean_info(int view_size, int feature_size, int action_size)
@@ -169,7 +169,10 @@ public:
         for(int i=0;i<3;++i)
             new_value[i] *= comm_channel;
 
-        mean_number = 0;
+        delete [] mean_number;
+        mean_number = new int[comm_channel];
+        memset(mean_number,0, sizeof(int) * comm_channel);
+
         for(int i=0;i<3;++i)
         {
             if(new_value[i] != mean_info_size[i])
@@ -186,15 +189,32 @@ public:
     }
     float** get_final_mean_info()
     {
-        if(mean_number > 0)
+        int sum = 0, comm_channel = get_type().comm_channel;
+        for(int i=0;i<comm_channel;++i)
+            sum += mean_number[i];
+        if(sum > 0)
         {
             for(int i=0;i<3;++i)
-            for(int j=mean_info_size[i]-1;j>=0;--j)
             {
-                mean_info[i][j]/=mean_number;
+                double sum = 0;
+                int single = (int)mean_info_size[i]/comm_channel, tmp;
+                int k = comm_channel - 1;
+                tmp = single;
+                for(int j=(int)mean_info_size[i]-1;j>=0;--j)
+                {
+                    if(mean_number[k] > 0)
+                        mean_info[i][j]/=mean_number[k];
+                    sum += mean_info[i][j];
+                    if(--tmp == 0)
+                    {
+                        tmp = single;
+                        k--;
+                    }
+                }
             }
         }
-        mean_number = 0;
+        std::memset(mean_number,0, sizeof(int)*comm_channel);
+
         return mean_info;
     }
     int get_tmpid()

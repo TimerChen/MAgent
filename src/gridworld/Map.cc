@@ -264,7 +264,7 @@ void Map::extract_mean_view(Agent *agent, NDPointer<float, 4> view_buffer, NDPoi
 
     int start_inner = *p_view_inner;
 
-    agent->mean_number = 0;
+    memset(agent->mean_number, 0, sizeof(int)*comm_channels);
     // scan the map
     for (int x = start_x; x <= end_x; x++) {
         PositionInteger pos_int = pos2int(x, start_y);
@@ -280,18 +280,19 @@ void Map::extract_mean_view(Agent *agent, NDPointer<float, 4> view_buffer, NDPoi
                     if((p->get_group() != agent->get_group() ||
                        p == agent) && !hear_all_group)
                         continue;
-                    agent->mean_number += 1;
 
                     int length = 0, s_length;
-                    int speak_channel = 0, channel_base = 0;
+                    int speak_channel = agent->get_speak_channel(),
+                        channel_base = 0;
                     float *copy_from;
+
+                    agent->mean_number[speak_channel] += 1;
 
                     //total view
                     copy_from = &view_buffer.at(p->get_tmpid(),0,0,0);
                     length = agent->mean_info_size[0];
                     s_length = length / comm_channels;
 
-                    speak_channel = agent->get_speak_channel();
                     channel_base = s_length * speak_channel;
 
 

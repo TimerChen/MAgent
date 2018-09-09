@@ -293,9 +293,6 @@ class DeepQNetwork_MC(TFBaseModel):
             t_qvalues, qvalues = self.sess.run([self.target_qvalues, self.qvalues],
                                                feed_dict={self.input_view: next_view,
                                                           self.input_feature: next_feature})
-            print("isnan?")
-            print(np.any(np.isnan(t_qvalues)))
-            print(np.any(np.isnan(qvalues)))
             next_value = t_qvalues[np.arange(n), np.argmax(qvalues, axis=1)]
         else:
             t_qvalues = self.sess.run(self.target_qvalues, {self.input_view: next_view,
@@ -424,6 +421,7 @@ class DeepQNetwork_MC(TFBaseModel):
         self.replay_buf_feature.clear()
         self.replay_buf_action.clear()
         self.replay_buf_reward.clear()
+        self.replay_buf_speak_cha.clear()
         self.replay_buf_terminal.clear()
         self.replay_buf_mask.clear()
 

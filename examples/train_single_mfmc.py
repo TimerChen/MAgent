@@ -102,7 +102,7 @@ def play_a_round(env, map_size, handles, models, print_every, train=True, render
             print("step %3d,  nums: %s reward: %s,  total_reward: %s " %
                   (step_ct, nums, np.around(step_reward, 2), np.around(total_reward, 2)))
         step_ct += 1
-        if step_ct > 50:
+        if step_ct > 550:
             break
 
     sample_time = time.time() - start_time

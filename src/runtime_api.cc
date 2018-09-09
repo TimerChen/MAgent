@@ -58,7 +58,7 @@ int env_get_mean_observation(EnvHandle game, GroupHandle group, float **buffer) 
         LOG(TRACE) << "Thie env cannot get mean observation.  ";
         return 1;
     }else{
-        ((magent::gridworld::GridWorld*)game)->get_mean_observation(group, buffer);
+        game->get_mean_observation(group, buffer);
         return 0;
     }
 }
