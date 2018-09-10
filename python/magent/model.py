@@ -350,7 +350,7 @@ def model_client(addr, sample_buffer_capacity, RLModel, model_args):
             package = NDArrayPackage(acts)
             conn.send(package.info)
             package.send_to(conn)
-        if cmd[0] == 's_c':
+        elif cmd[0] == 's_c':
             policy = cmd[1]
             eps = cmd[2]
             array_info = cmd[3]
