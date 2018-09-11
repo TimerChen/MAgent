@@ -43,6 +43,25 @@ class BaseModel:
             additional custom args
         """
         pass
+    def infer_speak_channel(self, raw_obs, ids, *args, **kwargs):
+        """ infer action for a group of agents
+
+        Parameters
+        ----------
+        raw_obs: tuple
+            raw_obs is a tuple of (view, feature)
+            view is a numpy array, its shape is n * view_width * view_height * n_channel
+                                   it contains the spatial local observation for all the agents
+            feature is a numpy array, its shape is n * feature_size
+                                   it contains the non-spatial feature for all the agents
+        ids: numpy array of int32
+            the unique id of every agents
+        args:
+            additional custom args
+        kwargs:
+            additional custom args
+        """
+        pass
 
     def train(self, sample_buffer, **kwargs):
         """ feed new samples and train

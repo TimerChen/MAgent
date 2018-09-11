@@ -14,6 +14,7 @@ import numpy as np
 
 import magent
 from magent.builtin.tf_model import DeepQNetwork
+from magent.builtin.tf_model import DeepQNetwork_MC
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -58,6 +59,7 @@ def play_a_round(env,  handles, models, types, map_size ,print_every, train=True
     mean_obs = [[] for _ in range(n)]
     ids  = [[] for _ in range(n)]
     acts = [[] for _ in range(n)]
+    speak_channel = [[] for _ in range(n)]
     nums = [env.get_num(handle) for handle in handles]
     sample_buffer = magent.utility.EpisodesBuffer(capacity=1500)
     total_reward = [0 for _ in range(n)]
@@ -67,7 +69,7 @@ def play_a_round(env,  handles, models, types, map_size ,print_every, train=True
         # take actions for every model
         for i in range(n):
             obs[i] = env.get_observation(handles[i])
-            if types[i] == 'mean_action':
+            if types[i] == 'mean_action' or types[i] == 'multi-chan':
                 mean_obs[i] = env.get_mean_action(handles[i])
                 obs[i] = (obs[i][0], np.concatenate([obs[i][1],mean_obs[i]], axis=1))
             elif types[i] == 'mean_all':
@@ -75,11 +77,12 @@ def play_a_round(env,  handles, models, types, map_size ,print_every, train=True
                 obs[i] = (np.concatenate([obs[i][0],mean_obs[i][0]], axis=3),
                           np.concatenate([obs[i][1],mean_obs[i][1]], axis=1))
             ids[i] = env.get_agent_id(handles[i])
-            models[i].infer_action(obs[i], ids[i], 'e_greedy', eps=eps, block=False)
-        for i in range(n) :
-            acts[i] = models[i].fetch_action()
+            acts[i] = models[i].infer_action(obs[i], ids[i], 'e_greedy', eps=eps)
             env.set_action(handles[i], acts[i])
-
+            if types[i] == 'multi-chan':
+                speak_channel[i] = models[i].infer_speak_channel(obs[i], ids[i], 'e_greedy', eps=eps)
+                env.set_speak_channel(handles[i], acts[i])
+        print('done')
         done = env.step()
         nums = [env.get_num(handle) for handle in handles]
         env.clear_dead()
@@ -87,11 +90,14 @@ def play_a_round(env,  handles, models, types, map_size ,print_every, train=True
         step_ct += 1
         if step_ct > 550:
             break
+    print('dddddddddddddddddddddone')
     return nums
 
 def extract_model_names(savedir, name, model_class, type=None, begin=0, pick_every=4):
     if model_class is DeepQNetwork:
         prefix = 'tfdqn'
+    elif model_class is DeepQNetwork_MC:
+        prefix = 'tfdqn_mc'
     if type == None:
         type = name
 
@@ -112,20 +118,26 @@ def play_wrapper(model_names, n_rounds=6):
     time_stamp = time.time()
 
     models = []
+    now_handles = handles
     for i, item in enumerate(model_names):
+        print('item[-1]', item[-1])
 
         view_space, feature_space = None, None
-        if item[-1] == 'mean_action':
-            feature_space = (env.get_feature_space(handles[0])[0] + env.get_mean_action_space(handles[0])[0],)
+        if item[-1] == 'mean_action' or item[-1] == 'multi-chan':
+            feature_space = (env.get_feature_space(now_handles[i])[0] + env.get_mean_action_space(now_handles[i])[0],)
         elif item[-1] == 'mean_all':
-            view_space = env.get_view_space(handles[0])
-            view_space = view_space[0:2] + (view_space[2] + env.get_mean_view_space(handles[0])[2], )
-            feature_space = env.get_feature_space(handles[0])
-            feature_space = (feature_space[0] + env.get_mean_feature_space(handles[0])[0],)
-        models.append(magent.ProcessingModel(env, handles[i], item[1], 0, RLModel=item[-2],
+            view_space = env.get_view_space(now_handles[i])
+            view_space = view_space[0:2] + (view_space[2] + env.get_mean_view_space(now_handles[i])[2], )
+            feature_space = env.get_feature_space(now_handles[i])
+            feature_space = (feature_space[0] + env.get_mean_feature_space(now_handles[i])[0],)
+        print(view_space, feature_space)
+        print(env.get_view_space(now_handles[i]), env.get_feature_space(now_handles[i]))
+        print('models.append', now_handles[i], item[1], 0, item[-2])
+        models.append(magent.ProcessingModel(env, now_handles[i], item[1], 0, RLModel=item[-2],
                                              custom_view_space = view_space, custom_feature_space = feature_space))
 
     for i, item in enumerate(model_names):
+        print('models.load', item[0], item[2])
         models[i].load(item[0], item[2])
 
     types = [item[-1] for item in model_names]
@@ -133,7 +145,7 @@ def play_wrapper(model_names, n_rounds=6):
     result = 0
     total_num = np.zeros(2)
     for _ in range(n_rounds):
-        round_num = play_a_round(env, handles, models, types, args.map_size, leftID, rightID)
+        round_num = play_a_round(env, now_handles, models, types, args.map_size, leftID, rightID)
         total_num += round_num
         leftID, rightID = rightID, leftID
         result += 1 if round_num[0] > round_num[1] else 0
@@ -143,6 +155,47 @@ def play_wrapper(model_names, n_rounds=6):
         model.quit()
 
     return result / n_rounds, total_num / n_rounds, time.time() - time_stamp
+
+""" battle of two armies """
+def get_config(map_size, leftType, rightType):
+    gw = magent.gridworld
+    cfg = gw.Config()
+
+    cfg.set({"map_width": map_size, "map_height": map_size})
+    cfg.set({"minimap_mode": True})
+    cfg.set({"embedding_size": 10})
+
+    multi_channel = cfg.register_agent_type(
+        "multi_channel",
+        {'width': 1, 'length': 1, 'hp': 10, 'speed': 2,
+         'view_range': gw.CircleRange(6), 'attack_range': gw.CircleRange(1.5),
+         'damage': 2, 'step_recover': 0.1,
+
+         #for multi-channel communication
+         'comm_channel': 2, 'hear_all_group': False,
+
+         'step_reward': -0.005,  'kill_reward': 5, 'dead_penalty': -0.1, 'attack_penalty': -0.1,
+         })
+    small = cfg.register_agent_type(
+        "small",
+        {'width': 1, 'length': 1, 'hp': 10, 'speed': 2,
+         'view_range': gw.CircleRange(6), 'attack_range': gw.CircleRange(1.5),
+         'damage': 2, 'step_recover': 0.1,
+
+         'step_reward': -0.005,  'kill_reward': 5, 'dead_penalty': -0.1, 'attack_penalty': -0.1,
+         })
+
+    g0 = cfg.add_group(small if leftType != 'multi-chan' else multi_channel)
+    g1 = cfg.add_group(small if rightType != 'multi-chan' else multi_channel)
+
+    a = gw.AgentSymbol(g0, index='any')
+    b = gw.AgentSymbol(g1, index='any')
+
+    # reward shaping to encourage attack
+    cfg.add_reward_rule(gw.Event(a, 'attack', b), receiver=a, value=0.2)
+    cfg.add_reward_rule(gw.Event(b, 'attack', a), receiver=b, value=0.2)
+
+    return cfg
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -160,19 +213,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 
-    # init the game
-    env = magent.GridWorld("battle", map_size=args.map_size)
-    env.set_render_dir("build/render")
-
-    handles = env.get_handles()
-    init_a_round(env, args.map_size, handles)
+    env = None
 
     model_name = []
+
     model_name = model_name + extract_model_names('save_model', 'single_base_mini', DeepQNetwork, type='simple',begin=1399, pick_every=1)
     print('number of models', len(model_name))
     model_name = model_name + extract_model_names('save_model', 'mean_action', DeepQNetwork, begin=1399, pick_every=1)
     print('number of models', len(model_name))
     model_name = model_name + extract_model_names('save_model', 'mean_all', DeepQNetwork, begin=1399, pick_every=1)
+    print('number of models', len(model_name))
+
+
+    model_name = model_name + extract_model_names('save_model', 'multi-chan', DeepQNetwork_MC, begin=1399, pick_every=1)
     print('number of models', len(model_name))
 
 
@@ -186,6 +239,15 @@ if __name__ == "__main__":
     rate = [[0.0 for i in range(n)] for j in range(n)]
     for i in range(n):
         for j in range(i,n):
+            # init the game
+            env = magent.GridWorld(get_config(args.map_size, model_name[i][-1], model_name[j][-1]),
+                                   map_size=args.map_size)
+            env.set_render_dir("build/render")
+            handles = env.get_handles()
+            for item in handles:
+                print(env.get_mean_action_space(item))
+            init_a_round(env, args.map_size, handles[:2])
+
             rate[i][j], nums, elapsed = play_wrapper([model_name[i], model_name[j]], 6)
             rate[j][i] = 1.0 - rate[i][j]
             round_res = ("model1: %s\t model2: %s\t rate: %.2f\t num: %s\t elapsed: %.2f" %

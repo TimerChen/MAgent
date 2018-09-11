@@ -30,6 +30,8 @@ GridWorld::GridWorld() {
     random_engine.seed(0);
 
     counter_x = counter_y = nullptr;
+    height = width = 0;
+    NUM_SEP_BUFFER = 1;
 }
 
 GridWorld::~GridWorld() {
@@ -82,8 +84,8 @@ void GridWorld::reset() {
         }
         move_buffers = new std::vector<MoveAction>[NUM_SEP_BUFFER];
         turn_buffers = new std::vector<TurnAction>[NUM_SEP_BUFFER];
-    }
-
+    }else
+        NUM_SEP_BUFFER = 1;
     // reset map
     map.reset(width, height, food_mode);
 
@@ -566,7 +568,6 @@ void GridWorld::get_mean_action(GroupHandle group, float *linear_buffers)
 void GridWorld::set_speak_channel(GroupHandle group, const int *speak_channel) {
     std::vector<Agent*> &agents = groups[group].get_agents();
     size_t agent_size = agents.size();
-
     for (int i = 0; i < agent_size; i++) {
         Agent *agent = agents[i];
         agent->set_speak_channel(speak_channel[i]);
@@ -677,6 +678,7 @@ void GridWorld::step(int *done) {
         }
         agent->add_reward(reward + agent->get_type().attack_penalty);
     }
+    LOG(TRACE) << "ATTACK DONE\n";
     attack_buffer.clear();
     if (!first_render)
         render_generator.set_attack_event(render_attack_buffer);
