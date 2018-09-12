@@ -15,7 +15,7 @@ set(LIB_SRC_FILES ${autopilot_sources})
 file(GLOB autopilot_sources src/render/*.cc src/render/*/*.cc src/render/*/*/*.cc)
 set(RENDER_SRC_FILES ${autopilot_sources})
 
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -std=c++11 -DLOG_TRACE_ENABLE")# -DLOG_TRACE_ENABLE
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -std=c++11 -O3")# -DLOG_TRACE_ENABLE
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable -Wno-reorder -Wno-sign-compare -Wno-missing-braces")
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -pthread -DDEBUG")
 

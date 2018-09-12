@@ -81,8 +81,7 @@ def play_a_round(env,  handles, models, types, map_size ,print_every, train=True
             env.set_action(handles[i], acts[i])
             if types[i] == 'multi-chan':
                 speak_channel[i] = models[i].infer_speak_channel(obs[i], ids[i], 'e_greedy', eps=eps)
-                env.set_speak_channel(handles[i], acts[i])
-        print('done')
+                env.set_speak_channel(handles[i], speak_channel[i])
         done = env.step()
         nums = [env.get_num(handle) for handle in handles]
         env.clear_dead()
@@ -90,7 +89,6 @@ def play_a_round(env,  handles, models, types, map_size ,print_every, train=True
         step_ct += 1
         if step_ct > 550:
             break
-    print('dddddddddddddddddddddone')
     return nums
 
 def extract_model_names(savedir, name, model_class, type=None, begin=0, pick_every=4):
@@ -120,7 +118,6 @@ def play_wrapper(model_names, n_rounds=6):
     models = []
     now_handles = handles
     for i, item in enumerate(model_names):
-        print('item[-1]', item[-1])
 
         view_space, feature_space = None, None
         if item[-1] == 'mean_action' or item[-1] == 'multi-chan':
@@ -130,14 +127,13 @@ def play_wrapper(model_names, n_rounds=6):
             view_space = view_space[0:2] + (view_space[2] + env.get_mean_view_space(now_handles[i])[2], )
             feature_space = env.get_feature_space(now_handles[i])
             feature_space = (feature_space[0] + env.get_mean_feature_space(now_handles[i])[0],)
-        print(view_space, feature_space)
-        print(env.get_view_space(now_handles[i]), env.get_feature_space(now_handles[i]))
-        print('models.append', now_handles[i], item[1], 0, item[-2])
+        #print(view_space, feature_space)
+        #print(env.get_view_space(now_handles[i]), env.get_feature_space(now_handles[i]))
+        #print('models.append', now_handles[i], item[1], 0, item[-2])
         models.append(magent.ProcessingModel(env, now_handles[i], item[1], 0, RLModel=item[-2],
                                              custom_view_space = view_space, custom_feature_space = feature_space))
 
     for i, item in enumerate(model_names):
-        print('models.load', item[0], item[2])
         models[i].load(item[0], item[2])
 
     types = [item[-1] for item in model_names]
@@ -216,6 +212,8 @@ if __name__ == "__main__":
     env = None
 
     model_name = []
+    model_name = model_name + extract_model_names('save_model', 'multi-chan', DeepQNetwork_MC, begin=1399, pick_every=1)
+    print('number of models', len(model_name))
 
     model_name = model_name + extract_model_names('save_model', 'single_base_mini', DeepQNetwork, type='simple',begin=1399, pick_every=1)
     print('number of models', len(model_name))
@@ -225,8 +223,6 @@ if __name__ == "__main__":
     print('number of models', len(model_name))
 
 
-    model_name = model_name + extract_model_names('save_model', 'multi-chan', DeepQNetwork_MC, begin=1399, pick_every=1)
-    print('number of models', len(model_name))
 
 
     # print debug info
@@ -244,8 +240,6 @@ if __name__ == "__main__":
                                    map_size=args.map_size)
             env.set_render_dir("build/render")
             handles = env.get_handles()
-            for item in handles:
-                print(env.get_mean_action_space(item))
             init_a_round(env, args.map_size, handles[:2])
 
             rate[i][j], nums, elapsed = play_wrapper([model_name[i], model_name[j]], 6)

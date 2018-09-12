@@ -141,7 +141,7 @@ public:
         dir = Direction(rand() % 4);
         hp = type.hp;
         last_action = static_cast<Action>(type.action_space.size()); // dangerous here !
-        last_speak_channel = 0;
+        last_speak_channel = 1;
         next_reward = 0;
 
         tmpid = 0;
