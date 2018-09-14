@@ -170,6 +170,12 @@ if __name__ == "__main__":
                                    batch_size=batch_size/unroll_step, unroll_step=unroll_step,
                                    memory_size=2 * 8 * 625, target_update=target_update,
                                    train_freq=train_freq, eval_obs=eval_obs))
+    elif args.alg == 'a2c':
+        from magent.builtin.mx_model import AdvantageActorCritic
+        step_batch_size = int(10 * args.map_size * args.map_size*0.01)
+        models.append(AdvantageActorCritic(env, handles[0], "tiger",
+                                           batch_size=step_batch_size,
+                                           learning_rate=1e-2))
     else:
         # see train_against.py to know how to use a2c
         raise NotImplementedError
