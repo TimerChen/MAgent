@@ -124,7 +124,7 @@ if __name__ == "__main__":
     parser.add_argument("--greedy", action="store_true")
     parser.add_argument("--name", type=str, default="battle")
     parser.add_argument("--eval", action="store_true")
-    parser.add_argument('--alg', default='dqn', choices=['dqn', 'drqn'])
+    parser.add_argument('--alg', default='dqn', choices=['dqn', 'drqn','a2c'])
     args = parser.parse_args()
 
     # set logger
