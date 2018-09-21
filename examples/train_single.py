@@ -167,7 +167,7 @@ if __name__ == "__main__":
         from magent.builtin.tf_model import DeepRecurrentQNetwork
         models.append(DeepRecurrentQNetwork(env, handles[0], args.name,
                                    learning_rate=3e-4,
-                                   batch_size=batch_size/unroll_step, unroll_step=unroll_step,
+                                   batch_size=batch_size//unroll_step, unroll_step=unroll_step,
                                    memory_size=2 * 8 * 625, target_update=target_update,
                                    train_freq=train_freq, eval_obs=eval_obs))
     elif args.alg == 'a2c':

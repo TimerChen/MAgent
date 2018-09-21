@@ -13,9 +13,11 @@ import numpy as np
 
 import magent
 
+mean_num = [0,0]
 
 def generate_map(env, map_size, handles):
     """ generate a map, which consists of two squares of agents"""
+    global mean_num
     width = height = map_size
     init_num = map_size * map_size * 0.04
     gap = 1
@@ -35,20 +37,25 @@ def generate_map(env, map_size, handles):
     pos = [[width-i[0]-1, i[1], 0] for i in pos]
     env.add_agents(handles[1], method="custom", pos=pos)
 
-
-def play_a_round(env, map_size, handles, models, print_every, train=True, render=False, eps=None):
+def init_a_round(env, map_size, handles):
     env.reset()
     generate_map(env, map_size, handles)
+
+def play_a_round(env, map_size, handles, models, print_every, train=True, render=False, eps=None):
+    global mean_num
+    init_a_round(env, map_size, handles)
 
     step_ct = 0
     done = False
 
     n = len(handles)
     obs  = [[] for _ in range(n)]
+    obs_all = [[] for _ in range(n)]
     ids  = [[] for _ in range(n)]
     acts = [[] for _ in range(n)]
     nums = [env.get_num(handle) for handle in handles]
-    sample_buffer = magent.utility.EpisodesBuffer(capacity=1500)
+    nums_all = [[] for _ in range(n)]
+    sample_buffer = magent.meanh_utility.EpisodesBuffer(capacity=1500)
     total_reward = [0 for _ in range(n)]
 
     print("===== sample =====")
@@ -56,11 +63,26 @@ def play_a_round(env, map_size, handles, models, print_every, train=True, render
     start_time = time.time()
     env.render()
     while not done:
+        # stat info
+        nums = [env.get_num(handle) for handle in handles]
+
         # take actions for every model
         for i in range(n):
             obs[i] = env.get_observation(handles[i])
+            raw_obs = obs[i]
+            padding_num = mean_num[i] - nums[i]
+            assert raw_obs[0].shape[0] == nums[i]
+            assert padding_num >= 0
+            if padding_num > 0:
+                obs_all[i] = (np.concatenate([raw_obs[0], np.zeros((padding_num,)+raw_obs[0].shape[1:])]),
+                           np.concatenate([raw_obs[1], np.zeros((padding_num,)+raw_obs[1].shape[1:])]) )
+            else:
+                obs_all[i] = raw_obs
+            obs_all[i] = ([obs_all[i][0] for j in range(nums[i])],
+                          [obs_all[i][1] for j in range(nums[i])])
+            nums_all[i] = [[nums[i]] for j in range(nums[i])]
             ids[i] = env.get_agent_id(handles[i])
-            acts[i] = models[i].infer_action(obs[i], ids[i], 'e_greedy', eps=eps)
+            acts[i] = models[i].infer_action(obs[i], obs_all[i], nums_all[i], ids[i], 'e_greedy', eps=eps)
             env.set_action(handles[i], acts[i])
 
         # simulate one step
@@ -72,7 +94,7 @@ def play_a_round(env, map_size, handles, models, print_every, train=True, render
             rewards = env.get_reward(handles[i])
             if train:
                 alives = env.get_alive(handles[i])
-                sample_buffer.record_step(ids[i], obs[i], acts[i], rewards, alives)
+                sample_buffer.record_step(ids[i], obs[i], acts[i], rewards, alives, obs_all[i], nums_all[i])
             s = sum(rewards)
             step_reward.append(s)
             total_reward[i] += s
@@ -81,8 +103,6 @@ def play_a_round(env, map_size, handles, models, print_every, train=True, render
         if render:
             env.render()
 
-        # stat info
-        nums = [env.get_num(handle) for handle in handles]
 
         # clear dead agents
         env.clear_dead()
@@ -138,6 +158,7 @@ if __name__ == "__main__":
     # two groups of agents
     names = [args.name + "-l", args.name + "-r"]
     handles = env.get_handles()
+    init_a_round(env, args.map_size, handles)
     
     # sample eval observation set
     eval_obs = None
@@ -154,26 +175,28 @@ if __name__ == "__main__":
     train_freq = 5
 
     models = []
+    mean_num = [env.get_num(handle) for handle in handles]
     if args.alg == 'dqn':
-        from magent.builtin.tf_model import DeepQNetwork
-        models.append(DeepQNetwork(env, handles[0], args.name,
+        from magent.builtin.tf_model import DeepQNetwork_meanh
+        models.append(DeepQNetwork_meanh(env, handles[0], args.name,
+                                   mean_num=max(mean_num[0], mean_num[1]),
                                    batch_size=batch_size,
                                    learning_rate=3e-4,
-                                   memory_size=2 ** 18, target_update=target_update,
+                                   memory_size=2 ** 17, target_update=target_update,
                                    train_freq=train_freq, eval_obs=eval_obs))
     elif args.alg == 'drqn':
         from magent.builtin.tf_model import DeepRecurrentQNetwork
         models.append(DeepRecurrentQNetwork(env, handles[0], args.name,
                                    learning_rate=3e-4,
-                                   batch_size=batch_size/unroll_step, unroll_step=unroll_step,
+                                   batch_size=batch_size//unroll_step, unroll_step=unroll_step,
                                    memory_size=2 * 8 * 625, target_update=target_update,
                                    train_freq=train_freq, eval_obs=eval_obs))
     elif args.alg == 'a2c':
         from magent.builtin.mx_model import AdvantageActorCritic
         step_batch_size = int(10 * args.map_size * args.map_size*0.01)
-        models.append(AdvantageActorCritic(env, handles[0], "tiger",
+        models.append(AdvantageActorCritic(env, handles[0], args.name,
                                            batch_size=step_batch_size,
-                                           learning_rate=1e-2))
+                                           learning_rate=2e-4))
     else:
         # see train_against.py to know how to use a2c
         raise NotImplementedError
