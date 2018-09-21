@@ -155,7 +155,6 @@ class DeepQNetwork_meanh(TFBaseModel):
         self.replay_buf_view     = ReplayBuffer(shape=(memory_size,) + self.view_space)
         self.replay_buf_feature  = ReplayBuffer(shape=(memory_size,) + self.feature_space)
         self.replay_buf_all_view = ReplayBuffer(shape=(memory_size, mean_num) + self.view_space)
-        print('shape', mean_num, (memory_size, mean_num,) + self.view_space)
         self.replay_buf_all_feature = ReplayBuffer(shape=(memory_size, mean_num) + self.feature_space)
         self.replay_buf_all_num  = ReplayBuffer(shape=(memory_size, 1), dtype=np.int32)
         self.replay_buf_action   = ReplayBuffer(shape=(memory_size,), dtype=np.int32)
@@ -319,7 +318,6 @@ class DeepQNetwork_meanh(TFBaseModel):
             av = np.array(av)
             af = np.array(af)
             an = np.array(an)
-            print(av.shape, af.shape, an.shape)
             m = len(r)
 
             mask = np.ones((m,))
