@@ -142,8 +142,11 @@ if __name__ == "__main__":
     parser.add_argument("--greedy", action="store_true")
     parser.add_argument("--name", type=str, default="battle")
     parser.add_argument("--eval", action="store_true")
+    parser.add_argument("--gpu", type=str, default="0")
     parser.add_argument('--alg', default='dqn', choices=['dqn', 'drqn','a2c'])
     args = parser.parse_args()
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 
     # set logger
     log.basicConfig(level=log.INFO, filename=args.name + '.log')
