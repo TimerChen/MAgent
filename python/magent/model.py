@@ -220,6 +220,36 @@ class ProcessingModel(BaseModel):
         else:
             return None
 
+    def infer_action_all(self, raw_obs, all_obs, all_num, ids, policy='e_greedy', eps=0, block=True):
+        """ infer action
+
+        Parameters
+        ----------
+        policy: str
+            can be 'e_greedy' or 'greedy'
+        eps: float
+            used when policy is 'e_greedy'
+        block: bool
+            if it is True, the function call will block, and return actions
+            if it is False, the function call won't block, the caller
+                            must call fetch_action() to get actions
+
+        Returns
+        -------
+        actions: numpy array (int32)
+            see above
+        """
+
+        package = NDArrayPackage(raw_obs[0], raw_obs[1], all_obs[0], all_obs[1], all_num, ids)
+        self.conn.send(["act_meanh", policy, eps, package.info])
+        package.send_to(self.conn, use_thread=True)
+
+        if block:
+            info = self.conn.recv()
+            return NDArrayPackage(info).recv_from(self.conn)[0]
+        else:
+            return None
+
     def fetch_action(self):
         """ fetch actions , fetch action after calling infer_action(block=False)
 
@@ -375,6 +405,19 @@ def model_client(addr, sample_buffer_capacity, RLModel, model_args):
             obs = (view, feature)
 
             acts = model.infer_action(obs, ids, policy=policy, eps=eps)
+            package = NDArrayPackage(acts)
+            conn.send(package.info)
+            package.send_to(conn)
+        elif cmd[0] == 'act_meanh':
+            policy = cmd[1]
+            eps = cmd[2]
+            array_info = cmd[3]
+
+            view, feature, all_view, all_feature, all_num, ids = NDArrayPackage(array_info).recv_from(conn)
+            obs = (view, feature)
+            all_obs = (all_view, all_feature)
+
+            acts = model.infer_action(obs, all_obs, all_num, ids, policy=policy, eps=eps)
             package = NDArrayPackage(acts)
             conn.send(package.info)
             package.send_to(conn)
