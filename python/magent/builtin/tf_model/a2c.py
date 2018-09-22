@@ -11,6 +11,7 @@ class AdvantageActorCritic(TFBaseModel):
     def __init__(self, env, handle, name, learning_rate=1e-3,
                  batch_size=64, reward_decay=0.99, eval_obs=None,
                  train_freq=1, value_coef=0.1, ent_coef=0.08, use_comm=False,
+                 use_conv=True, hidden_size=128,
                  custom_view_space=None, custom_feature_space=None):
         """init a model
 
@@ -63,7 +64,7 @@ class AdvantageActorCritic(TFBaseModel):
 
         # ======================= build network =======================
         with tf.name_scope(self.name):
-            self._create_network(self.view_space, self.feature_space)
+            self._create_network(self.view_space, self.feature_space, use_conv, hidden_size)
 
         # init tensorflow session
         config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
@@ -125,7 +126,7 @@ class AdvantageActorCritic(TFBaseModel):
 
         return h
 
-    def _create_network(self, view_space, feature_space):
+    def _create_network(self, view_space, feature_space, use_conv=True, hidden_szie=128):
         """define computation graph of network
 
         Parameters
@@ -142,11 +143,20 @@ class AdvantageActorCritic(TFBaseModel):
         num_agent = tf.placeholder(tf.int32, [])
 
         kernel_num = [32, 32]
-        hidden_size = [256]
+        hidden_size = [hidden_szie]
 
-        # fully connected
-        flatten_view = tf.reshape(input_view, [-1, np.prod([v.value for v in input_view.shape[1:]])])
-        h_view = tf.layers.dense(flatten_view, units=hidden_size[0], activation=tf.nn.relu)
+
+        if use_conv:  # convolution
+            h_conv1 = tf.layers.conv2d(input_view, filters=kernel_num[0], kernel_size=3,
+                                       activation=tf.nn.relu, name="conv1")
+            h_conv2 = tf.layers.conv2d(h_conv1, filters=kernel_num[1], kernel_size=3,
+                                       activation=tf.nn.relu, name="conv2")
+            flatten_view = tf.reshape(h_conv2, [-1, np.prod([v.value for v in h_conv2.shape[1:]])])
+            h_view = tf.layers.dense(flatten_view, units=hidden_size[0], activation=tf.nn.relu,
+                                     name="dense_view")
+        else:# fully connected
+            flatten_view = tf.reshape(input_view, [-1, np.prod([v.value for v in input_view.shape[1:]])])
+            h_view = tf.layers.dense(flatten_view, units=hidden_size[0], activation=tf.nn.relu)
 
         h_emb = tf.layers.dense(input_feature,  units=hidden_size[0], activation=tf.nn.relu)
 

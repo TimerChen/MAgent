@@ -16,38 +16,38 @@ import magent
 
 def generate_map(env, map_size, handles):
     """ generate a map, which consists of two squares of agents"""
+    global mean_num
     width = height = map_size
     init_num = map_size * map_size * 0.04
-    gap = 3
+    gap = 1
 
     # left
     n = init_num
     side = int(math.sqrt(n)) * 2
+    wside = 6
+    hside = 10
     pos = []
-    for x in range(width//2 - gap - side, width//2 - gap - side + side, 2):
-        for y in range((height - side)//2, (height - side)//2 + side, 2):
+    for x in range(width//2 - gap - wside, width//2 - gap - wside + wside, 2):
+        for y in range((height - hside)//2+1, (height - hside)//2 + hside, 2):
             pos.append([x, y, 0])
     env.add_agents(handles[0], method="custom", pos=pos)
 
-    # right
-    n = init_num
-    side = int(math.sqrt(n)) * 2
-    pos = []
-    for x in range(width//2 + gap, width//2 + gap + side, 2):
-        for y in range((height - side)//2, (height - side)//2 + side, 2):
-            pos.append([x, y, 0])
+    #right
+    pos = [[width-i[0]-1, i[1], 0] for i in pos]
     env.add_agents(handles[1], method="custom", pos=pos)
 
-
-def play_a_round(env, map_size, handles, models, print_every, train=True, render=False, eps=None):
+def init_a_round(env, map_size, handles):
     env.reset()
     generate_map(env, map_size, handles)
 
+def play_a_round(env, map_size, handles, models, print_every, train=True, render=False, eps=None):
+    init_a_round(env, map_size, handles)
     step_ct = 0
     done = False
 
     n = len(handles)
     obs  = [[] for _ in range(n)]
+    mean_obs = [[] for _ in range(n)]
     ids  = [[] for _ in range(n)]
     acts = [[] for _ in range(n)]
     nums = [env.get_num(handle) for handle in handles]
@@ -61,6 +61,9 @@ def play_a_round(env, map_size, handles, models, print_every, train=True, render
         # take actions for every model
         for i in range(n):
             obs[i] = env.get_observation(handles[i])
+            mean_obs[i] = env.get_mean_action(handles[i])
+            obs[i] = (obs[i][0], np.concatenate([obs[i][1],mean_obs[i]], axis=1))
+
             ids[i] = env.get_agent_id(handles[i])
             acts[i] = models[i].infer_action(obs[i], ids[i], 'e_greedy', eps=eps)
             env.set_action(handles[i], acts[i])
@@ -120,11 +123,11 @@ if __name__ == "__main__":
     parser.add_argument("--render", action="store_true")
     parser.add_argument("--load_from", type=int)
     parser.add_argument("--train", action="store_true")
-    parser.add_argument("--map_size", type=int, default=63)
+    parser.add_argument("--map_size", type=int, default=13)
     parser.add_argument("--greedy", action="store_true")
     parser.add_argument("--name", type=str, default="battle")
     parser.add_argument("--eval", action="store_true")
-    parser.add_argument('--alg', default='dqn', choices=['dqn', 'drqn','a2c','a2c_tf'])
+    parser.add_argument('--alg', default='dqn', choices=['dqn', 'drqn'])
     args = parser.parse_args()
 
     # set logger
@@ -156,33 +159,23 @@ if __name__ == "__main__":
     train_freq = 5
 
     models = []
+    init_a_round(env, args.map_size, handles)
     if args.alg == 'dqn':
         from magent.builtin.tf_model import DeepQNetwork
         models.append(DeepQNetwork(env, handles[0], args.name,
                                    batch_size=batch_size,
                                    learning_rate=3e-4,
                                    memory_size=2 ** 18, target_update=target_update,
-                                   train_freq=train_freq, eval_obs=eval_obs))
+                                   train_freq=train_freq, eval_obs=eval_obs,
+                                   custom_feature_space = (env.get_feature_space(handles[0])[0] + env.get_mean_action_space(handles[0])[0],)
+                                   ))
     elif args.alg == 'drqn':
         from magent.builtin.tf_model import DeepRecurrentQNetwork
         models.append(DeepRecurrentQNetwork(env, handles[0], args.name,
                                    learning_rate=3e-4,
-                                   batch_size=batch_size//unroll_step, unroll_step=unroll_step,
+                                   batch_size=batch_size/unroll_step, unroll_step=unroll_step,
                                    memory_size=2 * 8 * 625, target_update=target_update,
                                    train_freq=train_freq, eval_obs=eval_obs))
-    elif args.alg == 'a2c':
-        from magent.builtin.mx_model import AdvantageActorCritic
-        step_batch_size = int(10 * args.map_size * args.map_size*0.01)
-        models.append(AdvantageActorCritic(env, handles[0], args.name,
-                                           batch_size=step_batch_size,
-                                           learning_rate=1e-2))
-    elif args.alg == 'a2c_tf':
-        from magent.builtin.tf_model import AdvantageActorCritic
-        step_batch_size = int(10 * args.map_size * args.map_size*0.01)
-        models.append(AdvantageActorCritic(env, handles[0], args.name,
-                                           batch_size=step_batch_size,
-                                           hidden_size=256, use_conv=False,
-                                           learning_rate=1e-3))
     else:
         # see train_against.py to know how to use a2c
         raise NotImplementedError
