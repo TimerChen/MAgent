@@ -133,7 +133,7 @@ def play_wrapper(model_names, n_rounds=6):
         #print(view_space, feature_space)
         #print(env.get_view_space(now_handles[i]), env.get_feature_space(now_handles[i]))
         #print('models.append', now_handles[i], item[1], 0, item[-2])
-        models.append(magent.ProcessingModel(env, now_handles[i], item[1], 0, RLModel=item[-2],
+        models.append(magent.ProcessingModel(env, now_handles[i], item[1], 20000+i, RLModel=item[-2],
                                              custom_view_space = view_space, custom_feature_space = feature_space))
 
     for i, item in enumerate(model_names):
@@ -219,15 +219,19 @@ if __name__ == "__main__":
     model_name = model_name + extract_model_names('save_model', 'a2c_tf2', AdvantageActorCritic, begin=1399, pick_every=1)
     print('number of models', len(model_name))
 
+    model_name = model_name + extract_model_names('save_model', 'a2c_tf', AdvantageActorCritic, begin=1399, pick_every=1)
+    print('number of models', len(model_name))
+
     #model_name = model_name + extract_model_names('save_model', 'multi-chan', DeepQNetwork_MC, begin=1399, pick_every=1)
     #print('number of models', len(model_name))
 
     model_name = model_name + extract_model_names('save_model', 'single_base_mini', DeepQNetwork, type='simple',begin=1399, pick_every=1)
     print('number of models', len(model_name))
-    model_name = model_name + extract_model_names('save_model', 'mean_action', DeepQNetwork, begin=1399, pick_every=1)
-    print('number of models', len(model_name))
-    model_name = model_name + extract_model_names('save_model', 'mean_all', DeepQNetwork, begin=1399, pick_every=1)
-    print('number of models', len(model_name))
+    #model_name = model_name + extract_model_names('save_model', 'mean_action', DeepQNetwork, begin=1399, pick_every=1)
+    #print('number of models', len(model_name))
+    #model_name = model_name + extract_model_names('save_model', 'mean_all', DeepQNetwork, begin=1399, pick_every=1)
+    #print('number of models', len(model_name))
+
 
 
 
