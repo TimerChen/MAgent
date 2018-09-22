@@ -61,7 +61,9 @@ def play_a_round(env, map_size, handles, models, print_every, train=True, render
     print("===== sample =====")
     print("eps %.2f number %s" % (eps, nums))
     start_time = time.time()
-    env.render()
+
+    if render:
+        env.render()
     while not done:
         # stat info
         nums = [env.get_num(handle) for handle in handles]
@@ -98,6 +100,9 @@ def play_a_round(env, map_size, handles, models, print_every, train=True, render
             s = sum(rewards)
             step_reward.append(s)
             total_reward[i] += s
+
+
+        nums = [env.get_num(handle) for handle in handles]
 
         # render
         if render:
@@ -179,6 +184,7 @@ if __name__ == "__main__":
 
     models = []
     mean_num = [env.get_num(handle) for handle in handles]
+    print("mean_num", mean_num)
     if args.alg == 'dqn':
         from magent.builtin.tf_model import DeepQNetwork_meanh
         models.append(DeepQNetwork_meanh(env, handles[0], args.name,

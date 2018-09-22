@@ -15,6 +15,7 @@ import numpy as np
 import magent
 from magent.builtin.tf_model import DeepQNetwork
 from magent.builtin.tf_model import DeepQNetwork_MC
+from magent.builtin.tf_model import AdvantageActorCritic
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -96,6 +97,8 @@ def extract_model_names(savedir, name, model_class, type=None, begin=0, pick_eve
         prefix = 'tfdqn'
     elif model_class is DeepQNetwork_MC:
         prefix = 'tfdqn_mc'
+    elif model_class is AdvantageActorCritic:
+        prefix = 'tfa2c'
     if type == None:
         type = name
 
@@ -212,8 +215,12 @@ if __name__ == "__main__":
     env = None
 
     model_name = []
-    model_name = model_name + extract_model_names('save_model', 'multi-chan', DeepQNetwork_MC, begin=1399, pick_every=1)
+
+    model_name = model_name + extract_model_names('save_model', 'a2c_tf2', AdvantageActorCritic, begin=1399, pick_every=1)
     print('number of models', len(model_name))
+
+    #model_name = model_name + extract_model_names('save_model', 'multi-chan', DeepQNetwork_MC, begin=1399, pick_every=1)
+    #print('number of models', len(model_name))
 
     model_name = model_name + extract_model_names('save_model', 'single_base_mini', DeepQNetwork, type='simple',begin=1399, pick_every=1)
     print('number of models', len(model_name))
