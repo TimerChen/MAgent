@@ -124,7 +124,7 @@ if __name__ == "__main__":
     parser.add_argument("--greedy", action="store_true")
     parser.add_argument("--name", type=str, default="battle")
     parser.add_argument("--eval", action="store_true")
-    parser.add_argument('--alg', default='dqn', choices=['dqn', 'drqn','a2c'])
+    parser.add_argument('--alg', default='dqn', choices=['dqn', 'drqn','a2c','a2c_tf'])
     args = parser.parse_args()
 
     # set logger
@@ -173,9 +173,15 @@ if __name__ == "__main__":
     elif args.alg == 'a2c':
         from magent.builtin.mx_model import AdvantageActorCritic
         step_batch_size = int(10 * args.map_size * args.map_size*0.01)
-        models.append(AdvantageActorCritic(env, handles[0], "tiger",
+        models.append(AdvantageActorCritic(env, handles[0], args.name,
                                            batch_size=step_batch_size,
                                            learning_rate=1e-2))
+    elif args.alg == 'a2c_tf':
+        from magent.builtin.tf_model import AdvantageActorCritic
+        step_batch_size = int(10 * args.map_size * args.map_size*0.01)
+        models.append(AdvantageActorCritic(env, handles[0], args.name,
+                                           batch_size=step_batch_size,
+                                           learning_rate=1e-3))
     else:
         # see train_against.py to know how to use a2c
         raise NotImplementedError
