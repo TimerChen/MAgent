@@ -248,11 +248,17 @@ if __name__ == "__main__":
     model_name = []
 
 
+    model_name = model_name + extract_model_names('save_model', 'mf_mini', DeepQNetwork, begin=1399, pick_every=1,
+                                                  type='mean_action')
+    print('number of models', len(model_name))
+
     model_name = model_name + extract_model_names('save_model', 'meanh', DeepQNetwork_meanh, begin=1399, pick_every=1)
     print('number of models', len(model_name))
 
     model_name = model_name + extract_model_names('save_model', 'single_base_mini', DeepQNetwork, begin=1399, pick_every=1)
     print('number of models', len(model_name))
+
+
 
 
 
