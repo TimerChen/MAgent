@@ -158,12 +158,18 @@ def play_wrapper(model_names, n_rounds=20):
         #print(env.get_view_space(now_handles[i]), env.get_feature_space(now_handles[i]))
         #print('models.append', now_handles[i], item[1], 0, item[-2])
         if item[-1] == 'meanh':
-            models.append(magent.ProcessingModel(env, now_handles[i], item[1], 20000+i, RLModel=item[-2],
+            if item[1] == 'meanh_42':
+                h_size = 42
+            elif item[1] == 'meanh_10':
+                h_size = 10
+            else:
+                h_size = 21
+            models.append(magent.ProcessingModel(env, now_handles[i], item[1], 21000+i, RLModel=item[-2],
                                              custom_view_space = view_space, custom_feature_space = feature_space,
-                                                 mean_num=max(mean_num[0], mean_num[1]),
+                                                 mean_num=max(mean_num[0], mean_num[1]), h_size = h_size,
                                                  memory_size=2 ** 17))
         else:
-            models.append(magent.ProcessingModel(env, now_handles[i], item[1], 20000+i, RLModel=item[-2],
+            models.append(magent.ProcessingModel(env, now_handles[i], item[1], 21000+i, RLModel=item[-2],
                                                  custom_view_space = view_space, custom_feature_space = feature_space,
                                                  memory_size=2 ** 18))
 
@@ -248,6 +254,12 @@ if __name__ == "__main__":
     model_name = []
 
 
+    model_name = model_name + extract_model_names('save_model', 'meanh_10', DeepQNetwork_meanh, begin=1399, pick_every=1,
+                                                   type='meanh')
+    print('number of models', len(model_name))
+    model_name = model_name + extract_model_names('save_model', 'meanh_42', DeepQNetwork_meanh, begin=1399, pick_every=1,
+                                                   type='meanh')
+    print('number of models', len(model_name))
     model_name = model_name + extract_model_names('save_model', 'mf_mini', DeepQNetwork, begin=1399, pick_every=1,
                                                   type='mean_action')
     print('number of models', len(model_name))
@@ -255,8 +267,8 @@ if __name__ == "__main__":
     model_name = model_name + extract_model_names('save_model', 'meanh', DeepQNetwork_meanh, begin=1399, pick_every=1)
     print('number of models', len(model_name))
 
-    model_name = model_name + extract_model_names('save_model', 'single_base_mini', DeepQNetwork, begin=1399, pick_every=1)
-    print('number of models', len(model_name))
+    #model_name = model_name + extract_model_names('save_model', 'single_base_mini', DeepQNetwork, begin=1399, pick_every=1)
+    #print('number of models', len(model_name))
 
 
 

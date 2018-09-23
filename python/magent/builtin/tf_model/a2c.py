@@ -63,7 +63,7 @@ class AdvantageActorCritic(TFBaseModel):
         self.use_comm = use_comm
 
         # ======================= build network =======================
-        with tf.name_scope(self.name):
+        with tf.variable_scope(self.name):
             self._create_network(self.view_space, self.feature_space, use_conv, hidden_size)
 
         # init tensorflow session
