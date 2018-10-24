@@ -66,6 +66,8 @@ def play_a_round(env,  handles, models, types, map_size ,print_every, train=True
     total_reward = [0 for _ in range(n)]
 
     start_time = time.time()
+    if render:
+        env.render()
     while not done:
         # take actions for every model
         for i in range(n):
@@ -85,6 +87,8 @@ def play_a_round(env,  handles, models, types, map_size ,print_every, train=True
                 env.set_speak_channel(handles[i], speak_channel[i])
         done = env.step()
         nums = [env.get_num(handle) for handle in handles]
+        if render:
+            env.render()
         env.clear_dead()
 
         step_ct += 1
@@ -133,7 +137,11 @@ def play_wrapper(model_names, n_rounds=6):
         #print(view_space, feature_space)
         #print(env.get_view_space(now_handles[i]), env.get_feature_space(now_handles[i]))
         #print('models.append', now_handles[i], item[1], 0, item[-2])
-        models.append(magent.ProcessingModel(env, now_handles[i], item[1], 20000+i, RLModel=item[-2],
+        #print('models.append', now_handles[i], item[1], 0, item[-2])i
+        useConv = True
+        if item[-1] == 'a2c_tf':
+            useConv = False
+        models.append(magent.ProcessingModel(env, now_handles[i], item[1], 20000+i, RLModel=item[-2], use_conv = useConv,
                                              custom_view_space = view_space, custom_feature_space = feature_space))
 
     for i, item in enumerate(model_names):
@@ -144,7 +152,7 @@ def play_wrapper(model_names, n_rounds=6):
     result = 0
     total_num = np.zeros(2)
     for _ in range(n_rounds):
-        round_num = play_a_round(env, now_handles, models, types, args.map_size, leftID, rightID)
+        round_num = play_a_round(env, now_handles, models, types, args.map_size, leftID, rightID, render=args.render)
         total_num += round_num
         leftID, rightID = rightID, leftID
         result += 1 if round_num[0] > round_num[1] else 0
@@ -216,17 +224,17 @@ if __name__ == "__main__":
 
     model_name = []
 
-    model_name = model_name + extract_model_names('save_model', 'a2c_tf2', AdvantageActorCritic, begin=1399, pick_every=1)
+    model_name = model_name + extract_model_names('save_model', 'a2c_tf2', AdvantageActorCritic, begin=1899, pick_every=1, type='a2c_tf')
     print('number of models', len(model_name))
 
-    model_name = model_name + extract_model_names('save_model', 'a2c_tf', AdvantageActorCritic, begin=1399, pick_every=1)
-    print('number of models', len(model_name))
+    #model_name = model_name + extract_model_names('save_model', 'a2c_tf', AdvantageActorCritic, begin=1399, pick_every=1)
+    #print('number of models', len(model_name))
 
     #model_name = model_name + extract_model_names('save_model', 'multi-chan', DeepQNetwork_MC, begin=1399, pick_every=1)
     #print('number of models', len(model_name))
 
-    model_name = model_name + extract_model_names('save_model', 'single_base_mini', DeepQNetwork, type='simple',begin=1399, pick_every=1)
-    print('number of models', len(model_name))
+    #model_name = model_name + extract_model_names('save_model', 'single_base_mini', DeepQNetwork, type='simple',begin=1399, pick_every=1)
+    #print('number of models', len(model_name))
     #model_name = model_name + extract_model_names('save_model', 'mean_action', DeepQNetwork, begin=1399, pick_every=1)
     #print('number of models', len(model_name))
     #model_name = model_name + extract_model_names('save_model', 'mean_all', DeepQNetwork, begin=1399, pick_every=1)

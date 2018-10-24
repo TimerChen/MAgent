@@ -67,6 +67,9 @@ def play_a_round(env,  handles, models, types, map_size ,print_every, train=True
     sample_buffer = magent.utility.EpisodesBuffer(capacity=1500)
     total_reward = [0 for _ in range(n)]
 
+    if render:
+        env.render()
+
     start_time = time.time()
     while not done:
         nums = [env.get_num(handle) for handle in handles]
@@ -107,6 +110,8 @@ def play_a_round(env,  handles, models, types, map_size ,print_every, train=True
                 speak_channel[i] = models[i].infer_speak_channel(obs[i], ids[i], 'e_greedy', eps=eps)
                 env.set_speak_channel(handles[i], speak_channel[i])
         done = env.step()
+        if render:
+            env.render()
         env.clear_dead()
 
         step_ct += 1
@@ -114,7 +119,7 @@ def play_a_round(env,  handles, models, types, map_size ,print_every, train=True
             break
     return nums
 
-def extract_model_names(savedir, name, model_class, type=None, begin=0, pick_every=4):
+def extract_model_names(savedir, name, model_class, type=None, begin=0, pick_every=4, end=None):
     if model_class is DeepQNetwork:
         prefix = 'tfdqn'
     elif model_class is DeepQNetwork_MC:
@@ -131,7 +136,9 @@ def extract_model_names(savedir, name, model_class, type=None, begin=0, pick_eve
     ret = []
     for path in os.listdir(os.path.join(savedir, name)):
         match = pattern.match(path)
-        if match and int(match.group(1)) > begin:
+        if match and int(match.group(1)) >= begin:
+            if end is not None and int(match.group(1)) > end:
+                continue
             ret.append((savedir, name, int(match.group(1)), model_class, type))
 
     ret.sort(key=lambda x: x[2])
@@ -181,7 +188,7 @@ def play_wrapper(model_names, n_rounds=20):
     result = 0
     total_num = np.zeros(2)
     for _ in range(n_rounds):
-        round_num = play_a_round(env, now_handles, models, types, args.map_size, leftID, rightID)
+        round_num = play_a_round(env, now_handles, models, types, args.map_size, leftID, rightID, render=args.render)
         total_num += round_num
         leftID, rightID = rightID, leftID
         result += 1 if round_num[0] > round_num[1] else 0
@@ -254,17 +261,17 @@ if __name__ == "__main__":
     model_name = []
 
 
-    model_name = model_name + extract_model_names('save_model', 'meanh_10', DeepQNetwork_meanh, begin=1399, pick_every=1,
-                                                   type='meanh')
-    print('number of models', len(model_name))
-    model_name = model_name + extract_model_names('save_model', 'meanh_42', DeepQNetwork_meanh, begin=1399, pick_every=1,
-                                                   type='meanh')
-    print('number of models', len(model_name))
-    model_name = model_name + extract_model_names('save_model', 'mf_mini', DeepQNetwork, begin=1399, pick_every=1,
+    # model_name = model_name + extract_model_names('save_model', 'meanh_10', DeepQNetwork_meanh, begin=1399, pick_every=1,
+    #                                                type='meanh')
+    # print('number of models', len(model_name))
+    # model_name = model_name + extract_model_names('save_model', 'meanh_42', DeepQNetwork_meanh, begin=1399, pick_every=1,
+    #                                                type='meanh')
+    # print('number of models', len(model_name))
+    model_name = model_name + extract_model_names('save_model', 'mf_mini', DeepQNetwork, begin=1499, end=1499, pick_every=1,
                                                   type='mean_action')
     print('number of models', len(model_name))
 
-    model_name = model_name + extract_model_names('save_model', 'meanh', DeepQNetwork_meanh, begin=1399, pick_every=1)
+    model_name = model_name + extract_model_names('save_model', 'meanh', DeepQNetwork_meanh, begin=1899, end=1899, pick_every=1)
     print('number of models', len(model_name))
 
     #model_name = model_name + extract_model_names('save_model', 'single_base_mini', DeepQNetwork, begin=1399, pick_every=1)
@@ -283,7 +290,7 @@ if __name__ == "__main__":
     n = len(model_name)
     rate = [[0.0 for i in range(n)] for j in range(n)]
     for i in range(n):
-        for j in range(i,n):
+        for j in range(i+1,n):
             # init the game
             env = magent.GridWorld(get_config(args.map_size, model_name[i][-1], model_name[j][-1]),
                                    map_size=args.map_size)
@@ -293,7 +300,7 @@ if __name__ == "__main__":
             mean_num = [env.get_num(handle) for handle in handles]
             print(mean_num)
 
-            rate[i][j], nums, elapsed = play_wrapper([model_name[i], model_name[j]], 6)
+            rate[i][j], nums, elapsed = play_wrapper([model_name[i], model_name[j]], 20)
             rate[j][i] = 1.0 - rate[i][j]
             round_res = ("model1: %s\t model2: %s\t rate: %.2f\t num: %s\t elapsed: %.2f" %
                          (model_name[i][:-2], model_name[j][:-2], rate[i][j], list(nums), elapsed))

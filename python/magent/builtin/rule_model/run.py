@@ -6,7 +6,7 @@ from magent.model import BaseModel
 from magent.c_lib import _LIB, as_int32_c_array, as_float_c_array
 
 
-class RushGatherer(BaseModel):
+class Run(BaseModel):
     def __init__(self, env, handle, blind=True, *args, **kwargs):
         BaseModel.__init__(self, env, handle)
 
@@ -27,9 +27,9 @@ class RushGatherer(BaseModel):
         buf = np.empty((n,), dtype=np.int32)
         act_buf = as_int32_c_array(buf)
         attack_base = self.attack_base
-        
+
         view2attack_buf = as_int32_c_array(self.view2attack)
 
-        _LIB.gather_infer_action(obs_buf, hp_buf, n, height, width, n_channel,
+        _LIB.run_infer_action(obs_buf, hp_buf, n, height, width, n_channel,
                                  act_buf, attack_base, 0, self.blind, view2attack_buf)
         return buf

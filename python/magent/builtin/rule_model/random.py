@@ -14,6 +14,6 @@ class RandomActor(BaseModel):
         self.n_action = env.get_action_space(handle)[0]
 
     def infer_action(self, obs, *args, **kwargs):
-        num = len(obs[0])
+        num = obs[0].shape[0]
         actions = np.random.randint(self.n_action, size=num, dtype=np.int32)
         return actions

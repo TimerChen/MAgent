@@ -72,8 +72,10 @@ void runaway_infer_action(float *obs_buf, float *feature_buf, int n, int height,
 void rush_prey_infer_action(float *obs_buf, float *feature_buf, int n, int height,  int width, int n_channel,
                             int *act_buf, int attack_channel, int attack_base,
                             int *view2attack_buf, float threshold);
-void gather_infer_action(float *obs_buf, float *hp_buf, int n, int height, int width, int n_channel,
-                         int *act_buf, int attack_base, int *view2attack_buf);
+void run_infer_action(float *obs_buf, float *feature_buf, int n, int height, int width, int n_channel,
+                      int *act_buf, int attack_base, int brave_rate, int blind, int *view2attack_buf);
+void gather_infer_action(float *obs_buf, float *feature_buf, int n, int height, int width, int n_channel,
+                         int *act_buf, int attack_base, int brave_rate, int blind, int *view2attack_buf);
 }
 
 #endif // MAGENT_RUNTIME_API_H
