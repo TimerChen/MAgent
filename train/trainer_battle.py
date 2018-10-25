@@ -95,6 +95,17 @@ class TrainerBattle:
 
     def _generate_map(self, env, map_size, handles):
         """ generate a map, which consists of two squares of agents"""
+        if True:
+            env.add_agents(handles[1], method="custom", pos=[[1,2,0], [1,3,0]])
+            env.add_agents(handles[0], method="custom", pos=[[1,1,0]])
+            return
+
+        if True:
+            env.add_walls(method="random", n=map_size*map_size*0.04)
+            env.add_agents(handles[0], method="random", n=map_size*map_size*0.05)
+            env.add_agents(handles[1], method="random", n=map_size*map_size*0.01)
+            return
+
         width = height = map_size
         init_num = map_size * map_size * 0.04
         gap = 3

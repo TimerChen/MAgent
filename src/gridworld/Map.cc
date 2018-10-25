@@ -203,6 +203,29 @@ void Map::extract_view(const Agent *agent, float *linear_buffer, const int *chan
         *p_view_inner = start_inner;
         *p_view_outer += d_view_outer;
     }
+
+    start_x = std::min(x1, x2);
+    end_x = std::max(x1, x2);
+    start_y = std::min(y1, y2);
+    end_y = std::max(y1, y2);//, h - 1);
+
+    abs_to_rela(eye_x, eye_y, dir, start_x, start_y, view_rela_x, view_rela_y);
+    view_x = view_rela_x - view_left_top_x;
+    view_y = view_rela_y - view_left_top_y;
+
+    for (int x = start_x; x <= end_x; x++) {
+        PositionInteger pos_int = pos2int(x, start_y);
+        for (int y = start_y; y <= end_y; y++) {
+            if((x < 0 || x >= w || y < 0 || y >= h) &&
+                range->is_in(view_y, view_x)){
+                buffer.at(view_y, view_x, 0) = 1;
+            }
+            *p_view_inner += d_view_inner;
+            pos_int += MAP_INNER_Y_ADD;
+        }
+        *p_view_inner = start_inner;
+        *p_view_outer += d_view_outer;
+    }
 }
 
 void Map::extract_mean_view(Agent *agent, NDPointer<float, 4> view_buffer, NDPointer<float, 2> feature_buffer,

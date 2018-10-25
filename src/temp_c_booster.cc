@@ -121,46 +121,69 @@ void run_infer_action(float *obs_buf, float *feature_buf, int n, int height, int
     #pragma omp parallel for
     for (int i = 0; i < n; i++) {
         NDPointer<float, 3> obs(obs_buf + i * height*width*n_channel, {{height, width, n_channel}});
+        std::vector<std::pair<int, int>> empty_pos;
         int action = -1;
 
         if (action == -1) {
             std::vector<int> att_vector;
             std::vector<std::pair<int, int>> vector;
 
+
+            for (int row = 0; row < height; row++)
+            {
+                for (int col = 0; col < width; col++)
+                    std::cout << obs.at(row, col, 4) << "";
+                std::cout << "\n";
+            }
+
             // find food
             for (int row = 0; row < height; row++)
                 for (int col = 0; col < width; col++) {
 
                     if (fabs(obs.at(row, col, 4) - 1.0) < 1e-10) {
-                        if (view2attack.at(row, col) != -1) {
-                            //att_vector.push_back(view2attack.at(row, col) + attack_base);
-                        } else {
+                        if (true) {
                             int d_row = row - height/2, d_col = col - width/2;
+                            int t_row = height-1 - row, t_col = width-1 - col;
                             if (d_row == d_col && abs(d_col) == 1) {
                                 if (rand() & 1)
+                                {
                                     d_row = 0;
-                                else
+                                    t_row = height-1 - height/2;
+                                }else{
                                     d_col = 0;
+                                    t_col = width-1 - width/2;
+                                }
                             }
-                            vector.push_back(std::make_pair(-d_row, -d_col));
+                            if(fabs(obs.at(t_row, t_col, 4)) < 1e-10 &&
+                               fabs(obs.at(t_row, t_col, 0)) < 1e-10)
+                            {
+                                LOG(ERROR) << t_row << "," << t_col <<" " << d_row << "," << d_col<<"\n";
+                                LOG(ERROR) << obs.at(t_row, t_col, 0) << "\n";
+                                vector.emplace_back(std::make_pair(-d_row, -d_col));
+                            }
                         }
                     }
+                    if (fabs(obs.at(row, col, 4)) < 1e-10 &&
+                        fabs(obs.at(row, col, 1)) < 1e-10 &&
+                        fabs(obs.at(row, col, 0)) < 1e-10)
+                        empty_pos.emplace_back(std::make_pair(row - height/2, col - width/2));
 
                 }
             if (!att_vector.empty()) {
                 action = att_vector[rand() % att_vector.size()];
             } else if (!vector.empty()) {
-                action = get_action(vector[0], false);
+                action = get_action(vector[rand() % vector.size()], false);
             }
         }
-
+        LOG(ERROR) << "action" << action <<"\n";
         // random walk
         if(action == -1)
         {
             const int rate = 4;
             if(rand()%rate == 0)
             {
-                action = rand() % attack_base;
+                //action = rand() % attack_base;
+                action = get_action(empty_pos[rand() % empty_pos.size()], false);
             }
         }
 
@@ -202,7 +225,8 @@ void run_infer_action(float *obs_buf, float *feature_buf, int n, int height, int
 
         if(action == -1)
         {
-            action = rand() % attack_base;
+            //action = rand() % attack_base;
+            action = get_action(empty_pos[rand() % empty_pos.size()], false);
         }
 
         act_buf[i] = action;

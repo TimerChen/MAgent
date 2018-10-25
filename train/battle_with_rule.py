@@ -39,8 +39,8 @@ if __name__ == "__main__":
     agents = [
         # agent_rulebase.AgentRulebase(trainer.env, trainer.handles[0], type="RushGatherer"),
         # agent_dqn.AgentDqn(trainer.env, trainer.handles[0], "battle_dqn"),
-        agent_rulebase.AgentRulebase(trainer.env, trainer.handles[0], trainer.handles[1], type="Run"),
-        agent_rulebase.AgentRulebase(trainer.env, trainer.handles[1], trainer.handles[0], type="Rush"),
+        agent_rulebase.AgentRulebase(trainer.env, trainer.handles[0], trainer.handles[1], type="Run", blind=True),
+        agent_rulebase.AgentRulebase(trainer.env, trainer.handles[1], trainer.handles[0], type="Rush", blind=False),
               ]
     trainer.init_agnets(agents)
 

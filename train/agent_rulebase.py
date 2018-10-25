@@ -9,7 +9,7 @@ import numpy as np
 import magent
 
 class AgentRulebase:
-    def __init__(self, env, handle, target_handle=None, type="Random"):
+    def __init__(self, env, handle, target_handle=None, type="Random", blind=False):
         self.model = None
 
         #from magent.builtin.rule_model import RushPredator
@@ -18,11 +18,9 @@ class AgentRulebase:
         #from magent.builtin.rule_model import RunawayPrey
         from magent.builtin.rule_model import RandomActor
         if type == "Rush":
-            self.model = RushGatherer(env, handle)
+            self.model = RushGatherer(env, handle, blind=blind)
         elif type == "Run":
-            self.model = Run(env, handle, target_handle)
-        elif type == "RunBlind":
-            self.model = Run(env, handle, target_handle, blind=True)
+            self.model = Run(env, handle, blind=blind)
         else:
             self.model = RandomActor(env, handle)
 
