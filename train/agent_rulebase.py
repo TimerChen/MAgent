@@ -28,7 +28,7 @@ class AgentRulebase:
         return self.model.infer_action(raw_obs, ids, policy, eps)
 
     def train(self, sample_buffer, print_every=1000):
-        pass
+        return (0.0, 0.0)
 
     def load(self, num_round, savedir = None):
         pass

@@ -31,7 +31,7 @@ class AgentDqn:
         return self.model.infer_action(raw_obs, ids, policy, eps)
 
     def train(self, sample_buffer, print_every=1000):
-        self.model.train(sample_buffer, print_every)
+        return self.model.train(sample_buffer, print_every)
 
     def load(self, num_round, savedir = None):
         if savedir == None:

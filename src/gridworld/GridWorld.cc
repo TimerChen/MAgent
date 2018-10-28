@@ -678,7 +678,7 @@ void GridWorld::step(int *done) {
         }
         agent->add_reward(reward + agent->get_type().attack_penalty);
     }
-    LOG(TRACE) << "ATTACK DONE\n";
+    LOG(TRACE) << "attack done.   ";
     attack_buffer.clear();
     if (!first_render)
         render_generator.set_attack_event(render_attack_buffer);
@@ -895,6 +895,7 @@ void GridWorld::get_info(GroupHandle group, const char *name, void *void_buffer)
         size_t agent_size = agents.size();
         #pragma omp parallel for
         for (int i = 0; i < agent_size; i++) {
+
             int_buffer[i] = agents[i]->get_id();
         }
     } else if (strequ(name, "pos")) {   // int

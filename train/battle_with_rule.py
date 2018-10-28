@@ -28,7 +28,7 @@ if __name__ == "__main__":
     parser.add_argument("--train", action="store_true")
     parser.add_argument("--map_size", type=int, default=63)
     parser.add_argument("--greedy", action="store_true")
-    parser.add_argument("--name", type=str, default="battle")
+    parser.add_argument("--name", type=str, default="shepherd_dqn")
     parser.add_argument("--eval", action="store_true")
     parser.add_argument("--gpu", type=str, default="0")
     parser.add_argument('--alg', default='dqn', choices=['dqn', 'drqn','a2c'])
@@ -40,7 +40,8 @@ if __name__ == "__main__":
         # agent_rulebase.AgentRulebase(trainer.env, trainer.handles[0], type="RushGatherer"),
         # agent_dqn.AgentDqn(trainer.env, trainer.handles[0], "battle_dqn"),
         agent_rulebase.AgentRulebase(trainer.env, trainer.handles[0], trainer.handles[1], type="Run", blind=True),
-        agent_rulebase.AgentRulebase(trainer.env, trainer.handles[1], trainer.handles[0], type="Rush", blind=False),
+        # agent_rulebase.AgentRulebase(trainer.env, trainer.handles[1], trainer.handles[0], type="Rush", blind=False),
+        agent_dqn.AgentDqn(trainer.env, trainer.handles[1], args.name)
               ]
     trainer.init_agnets(agents)
 

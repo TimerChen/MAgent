@@ -128,14 +128,6 @@ void run_infer_action(float *obs_buf, float *feature_buf, int n, int height, int
             std::vector<int> att_vector;
             std::vector<std::pair<int, int>> vector;
 
-
-            for (int row = 0; row < height; row++)
-            {
-                for (int col = 0; col < width; col++)
-                    std::cout << obs.at(row, col, 4) << "";
-                std::cout << "\n";
-            }
-
             // find food
             for (int row = 0; row < height; row++)
                 for (int col = 0; col < width; col++) {
@@ -157,8 +149,6 @@ void run_infer_action(float *obs_buf, float *feature_buf, int n, int height, int
                             if(fabs(obs.at(t_row, t_col, 4)) < 1e-10 &&
                                fabs(obs.at(t_row, t_col, 0)) < 1e-10)
                             {
-                                LOG(ERROR) << t_row << "," << t_col <<" " << d_row << "," << d_col<<"\n";
-                                LOG(ERROR) << obs.at(t_row, t_col, 0) << "\n";
                                 vector.emplace_back(std::make_pair(-d_row, -d_col));
                             }
                         }
@@ -175,8 +165,9 @@ void run_infer_action(float *obs_buf, float *feature_buf, int n, int height, int
                 action = get_action(vector[rand() % vector.size()], false);
             }
         }
-        LOG(ERROR) << "action" << action <<"\n";
+
         // random walk
+        /*
         if(action == -1)
         {
             const int rate = 4;
@@ -185,7 +176,7 @@ void run_infer_action(float *obs_buf, float *feature_buf, int n, int height, int
                 //action = rand() % attack_base;
                 action = get_action(empty_pos[rand() % empty_pos.size()], false);
             }
-        }
+        }*/
 
         // use minimap to navigation
         if (action == -1 && blind == 0) {
@@ -219,7 +210,7 @@ void run_infer_action(float *obs_buf, float *feature_buf, int n, int height, int
             std::sort(vector.rbegin(), vector.rend());
             action = get_action(vector[rand() % vector.size()].second, true);
             if (action == 6) {
-                action = rand() % attack_base;
+                //action = rand() % attack_base;
             }
         }
 
@@ -227,6 +218,7 @@ void run_infer_action(float *obs_buf, float *feature_buf, int n, int height, int
         {
             //action = rand() % attack_base;
             action = get_action(empty_pos[rand() % empty_pos.size()], false);
+            action = 6;
         }
 
         act_buf[i] = action;
@@ -237,7 +229,6 @@ void gather_infer_action(float *obs_buf, float *feature_buf, int n, int height, 
                          int *act_buf, int attack_base, int brave_rate, int blind,
                          int *view2attack_buf) {
     NDPointer<int, 2> view2attack(view2attack_buf, {{height, width}});
-
     #pragma omp parallel for
     for (int i = 0; i < n; i++) {
         NDPointer<float, 3> obs(obs_buf + i * height*width*n_channel, {{height, width, n_channel}});
@@ -292,14 +283,13 @@ void gather_infer_action(float *obs_buf, float *feature_buf, int n, int height, 
                     }
                 }
             std::sort(vector.rbegin(), vector.rend());
-            action = get_action(vector[rand() % vector.size()].second, true);
+            if(!vector.empty())
+                action = get_action(vector[rand() % vector.size()].second, true);
+            else
+                action = rand() % attack_base;
             if (action == 6) {
                 action = rand() % attack_base;
             }
-        }
-        if(action == -1)
-        {
-            action = rand() % attack_base;
         }
 
         act_buf[i] = action;

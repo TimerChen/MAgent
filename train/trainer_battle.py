@@ -11,7 +11,7 @@ import magent
 class TrainerBattle:
     def __init__(self, args,
                  total_rounds = 2000,
-                 rule="battle",
+                 rule="shepherd",
                  savedir='save_model', render_dir="build/render"):
 
         self.args = args
@@ -95,12 +95,12 @@ class TrainerBattle:
 
     def _generate_map(self, env, map_size, handles):
         """ generate a map, which consists of two squares of agents"""
-        if True:
+        if False:
             env.add_agents(handles[1], method="custom", pos=[[1,2,0], [1,3,0]])
             env.add_agents(handles[0], method="custom", pos=[[1,1,0]])
             return
 
-        if True:
+        if False:
             env.add_walls(method="random", n=map_size*map_size*0.04)
             env.add_agents(handles[0], method="random", n=map_size*map_size*0.05)
             env.add_agents(handles[1], method="random", n=map_size*map_size*0.01)
@@ -112,7 +112,7 @@ class TrainerBattle:
 
         # left
         n = init_num
-        side = int(math.sqrt(n)) * 2
+        side = int(math.sqrt(n))
         pos = []
         for x in range(width//2 - gap - side, width//2 - gap - side + side, 2):
             for y in range((height - side)//2, (height - side)//2 + side, 2):
@@ -143,12 +143,10 @@ class TrainerBattle:
 
         n = len(handles)
         obs  = [[] for _ in range(n)]
-        obs_all = [[] for _ in range(n)]
         ids  = [[] for _ in range(n)]
         acts = [[] for _ in range(n)]
         nums = [env.get_num(handle) for handle in handles]
-        nums_all = [[] for _ in range(n)]
-        sample_buffer = magent.meanh_utility.EpisodesBuffer(capacity=1500)
+        sample_buffer = magent.utility.EpisodesBuffer(capacity=1500)
         total_reward = [0 for _ in range(n)]
 
         print("===== sample =====")
@@ -157,12 +155,14 @@ class TrainerBattle:
 
         if render:
             env.render()
-        while not done:
+        while True:
             # stat info
             nums = [env.get_num(handle) for handle in handles]
 
             # take actions for every model
             for i in range(n):
+                if nums[i] == 0:
+                    continue
                 obs[i] = env.get_observation(handles[i])
                 ids[i] = env.get_agent_id(handles[i])
                 # raw_obs = obs[i]
@@ -176,10 +176,12 @@ class TrainerBattle:
             # sample
             step_reward = []
             for i in range(n):
+                if nums[i] == 0:
+                    continue
                 rewards = env.get_reward(handles[i])
                 if train:
                     alives = env.get_alive(handles[i])
-                    sample_buffer.record_step(ids[i], obs[i], acts[i], rewards, alives, obs_all[i], nums_all[i])
+                    sample_buffer.record_step(ids[i], obs[i], acts[i], rewards, alives)
                 s = sum(rewards)
                 step_reward.append(s)
                 total_reward[i] += s
@@ -205,13 +207,15 @@ class TrainerBattle:
         print("steps: %d,  total time: %.2f,  step average %.2f" % (step_ct, sample_time, sample_time / step_ct))
 
         # train
-        total_loss, value = 0, 0
+        total_loss, value = [0 for _ in range(n)], [0 for _ in range(n)]
         if train:
             print("===== train =====")
             start_time = time.time()
-            total_loss, value = agents[0].train(sample_buffer, 1000)
+            for i in range(n):
+                total_loss[i], value[i] = agents[i].train(sample_buffer, 1000)
             train_time = time.time() - start_time
             print("train_time %.2f" % train_time)
 
         def round_list(l): return [round(x, 2) for x in l]
-        return total_loss, nums, round_list(total_reward), value
+        return round_list(total_loss), nums, round_list(total_reward), round_list(value)
+        #return total_loss, nums, round_list(total_reward), value

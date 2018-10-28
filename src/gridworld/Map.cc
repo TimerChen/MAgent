@@ -143,10 +143,16 @@ void Map::extract_view(const Agent *agent, float *linear_buffer, const int *chan
 
     // find the coordinate of start point and end point in map
     int start_x, start_y, end_x, end_y;
+    /*
     start_x = std::max(std::min(x1, x2), 0);
     end_x = std::min(std::max(x1, x2), w - 1);
     start_y = std::max(std::min(y1, y2), 0);
     end_y = std::min(std::max(y1, y2), h - 1);
+     */
+    start_x = std::min(x1, x2);
+    end_x = std::max(x1, x2);
+    start_y = std::min(y1, y2);
+    end_y = std::max(y1, y2);
 
     NDPointer<float, 3> buffer(linear_buffer, {height, width, n_channel});
 
@@ -186,17 +192,22 @@ void Map::extract_view(const Agent *agent, float *linear_buffer, const int *chan
     for (int x = start_x; x <= end_x; x++) {
         PositionInteger pos_int = pos2int(x, start_y);
         for (int y = start_y; y <= end_y; y++) {
-            int channel_id = channel_ids[pos_int];
+            if((x < 0 || x >= w || y < 0 || y >= h) &&
+               range->is_in(view_y, view_x))
+            {
+                buffer.at(view_y, view_x, 0) = 1;
+            }else{
+                int channel_id = channel_ids[pos_int];
 
-            if (channel_id != -1 && range->is_in(view_y, view_x)) {
-                channel_id = channel_trans[channel_id];
-                buffer.at(view_y, view_x, channel_id) = 1;
-                if (slots[pos_int].occupier != nullptr && slots[pos_int].occ_type == OCC_AGENT) { // is agent
-                    Agent *p = ((Agent *) slots[pos_int].occupier);
-                    buffer.at(view_y, view_x, channel_id + 1) = p->get_hp() / p->get_type().hp; // normalize hp
+                if (channel_id != -1 && range->is_in(view_y, view_x)) {
+                    channel_id = channel_trans[channel_id];
+                    buffer.at(view_y, view_x, channel_id) = 1;
+                    if (slots[pos_int].occupier != nullptr && slots[pos_int].occ_type == OCC_AGENT) { // is agent
+                        Agent *p = ((Agent *) slots[pos_int].occupier);
+                        buffer.at(view_y, view_x, channel_id + 1) = p->get_hp() / p->get_type().hp; // normalize hp
+                    }
                 }
             }
-
             *p_view_inner += d_view_inner;
             pos_int += MAP_INNER_Y_ADD;
         }
@@ -204,28 +215,6 @@ void Map::extract_view(const Agent *agent, float *linear_buffer, const int *chan
         *p_view_outer += d_view_outer;
     }
 
-    start_x = std::min(x1, x2);
-    end_x = std::max(x1, x2);
-    start_y = std::min(y1, y2);
-    end_y = std::max(y1, y2);//, h - 1);
-
-    abs_to_rela(eye_x, eye_y, dir, start_x, start_y, view_rela_x, view_rela_y);
-    view_x = view_rela_x - view_left_top_x;
-    view_y = view_rela_y - view_left_top_y;
-
-    for (int x = start_x; x <= end_x; x++) {
-        PositionInteger pos_int = pos2int(x, start_y);
-        for (int y = start_y; y <= end_y; y++) {
-            if((x < 0 || x >= w || y < 0 || y >= h) &&
-                range->is_in(view_y, view_x)){
-                buffer.at(view_y, view_x, 0) = 1;
-            }
-            *p_view_inner += d_view_inner;
-            pos_int += MAP_INNER_Y_ADD;
-        }
-        *p_view_inner = start_inner;
-        *p_view_outer += d_view_outer;
-    }
 }
 
 void Map::extract_mean_view(Agent *agent, NDPointer<float, 4> view_buffer, NDPointer<float, 2> feature_buffer,
