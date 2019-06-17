@@ -1,0 +1,19 @@
+"""A random agent"""
+
+import numpy as np
+
+from magent.model import BaseModel
+
+
+class NoMove(BaseModel):
+    def __init__(self, env, handle, *args, **kwargs):
+        BaseModel.__init__(self, env, handle)
+
+        self.env = env
+        self.handle = handle
+        self.n_action = env.get_action_space(handle)[0]
+
+    def infer_action(self, obs, *args, **kwargs):
+        num = obs[0].shape[0]
+        actions = 6*np.ones([num], dtype=np.int32)
+        return actions

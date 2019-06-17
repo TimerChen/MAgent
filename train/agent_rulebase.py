@@ -17,12 +17,15 @@ class AgentRulebase:
         from magent.builtin.rule_model import Run
         #from magent.builtin.rule_model import RunawayPrey
         from magent.builtin.rule_model import RandomActor
+        from magent.builtin.rule_model import NoMove
         if type == "Rush":
             self.model = RushGatherer(env, handle, blind=blind)
         elif type == "Run":
             self.model = Run(env, handle, blind=blind)
-        else:
+        elif type == "Random":
             self.model = RandomActor(env, handle)
+        else:
+            self.model = NoMove(env, handle)
 
     def infer_action(self, raw_obs, ids, policy="e_greedy", eps=0):
         return self.model.infer_action(raw_obs, ids, policy, eps)
